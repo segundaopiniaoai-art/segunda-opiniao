@@ -10,10 +10,14 @@ export async function login(
 ): Promise<{ error: string | null }> {
   const supabase = await createClient()
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  })
+  const email = (formData.get('email') as string | null)?.trim() ?? ''
+  const password = (formData.get('password') as string | null) ?? ''
+
+  if (!email || !password) {
+    return { error: 'Email and password are required.' }
+  }
+
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
     return { error: error.message }
@@ -29,10 +33,14 @@ export async function register(
 ): Promise<{ error: string | null }> {
   const supabase = await createClient()
 
-  const { error } = await supabase.auth.signUp({
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  })
+  const email = (formData.get('email') as string | null)?.trim() ?? ''
+  const password = (formData.get('password') as string | null) ?? ''
+
+  if (!email || !password) {
+    return { error: 'Email and password are required.' }
+  }
+
+  const { error } = await supabase.auth.signUp({ email, password })
 
   if (error) {
     return { error: error.message }

@@ -16,25 +16,23 @@ const TEST_EMAIL = `integration-test-${Date.now()}@example.com`
 const TEST_PASSWORD = 'IntegrationTest123!'
 
 describe('auth integration', () => {
-  let createdUserId: string | null = null
+  let createdUserId: string
 
-  afterAll(async () => {
-    if (createdUserId) {
-      await supabase.auth.admin.deleteUser(createdUserId)
-    }
-  })
-
-  it('creates user and auto-inserts profile row via trigger', async () => {
+  beforeAll(async () => {
     const { data, error } = await supabase.auth.admin.createUser({
       email: TEST_EMAIL,
       password: TEST_PASSWORD,
       email_confirm: true,
     })
-
     expect(error).toBeNull()
-    expect(data.user).toBeDefined()
     createdUserId = data.user!.id
+  })
 
+  afterAll(async () => {
+    await supabase.auth.admin.deleteUser(createdUserId)
+  })
+
+  it('auto-inserts profile row with role=user via trigger on registration', async () => {
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
