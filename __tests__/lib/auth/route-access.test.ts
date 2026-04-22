@@ -81,5 +81,12 @@ describe('determineAccess', () => {
         destination: '/dashboard',
       })
     })
+
+    it('redirects authenticated user with unresolved role (null) from /admin/users to /dashboard', () => {
+      expect(determineAccess('/admin/users', user, null)).toEqual({
+        action: 'redirect',
+        destination: '/dashboard',
+      })
+    })
   })
 })
