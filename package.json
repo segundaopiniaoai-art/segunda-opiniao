@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:integration": "INTEGRATION=true jest --testPathPattern=integration"
+    "test:integration": "INTEGRATION=true jest"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
