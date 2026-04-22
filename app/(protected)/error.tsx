@@ -3,7 +3,7 @@
 export default function ProtectedError({
   reset,
 }: {
-  error: Error
+  error: Error & { digest?: string }
   reset: () => void
 }) {
   return (

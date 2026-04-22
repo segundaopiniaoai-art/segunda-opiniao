@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export default function PublicLayout({
   children,
 }: {
@@ -8,10 +10,10 @@ export default function PublicLayout({
       <nav className="border-b px-6 py-4 flex items-center justify-between">
         <a href="/" className="font-semibold text-lg">SaaS App</a>
         <div className="flex gap-4 text-sm">
-          <a href="/login" className="text-gray-600 hover:text-black">Sign in</a>
-          <a href="/register" className="bg-black text-white px-4 py-1.5 rounded-lg">
+          <Link href="/login" className="text-gray-600 hover:text-black">Sign in</Link>
+          <Link href="/register" className="bg-black text-white px-4 py-1.5 rounded-lg">
             Get started
-          </a>
+          </Link>
         </div>
       </nav>
       <main>{children}</main>

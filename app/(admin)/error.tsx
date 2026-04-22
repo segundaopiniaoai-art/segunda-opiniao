@@ -3,7 +3,7 @@
 export default function AdminError({
   reset,
 }: {
-  error: Error
+  error: Error & { digest?: string }
   reset: () => void
 }) {
   return (

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { logout } from '@/actions/auth'
 
 export default function AdminLayout({
@@ -8,22 +9,22 @@ export default function AdminLayout({
   return (
     <div className="min-h-screen flex">
       <aside className="w-56 border-r bg-gray-900 text-white flex flex-col p-6">
-        <a href="/dashboard" className="font-semibold text-lg mb-8 block">
+        <Link href="/dashboard" className="font-semibold text-lg mb-8 block">
           Admin
-        </a>
+        </Link>
         <nav className="space-y-1 flex-1">
-          <a
+          <Link
             href="/admin/users"
             className="block text-sm px-3 py-2 rounded-lg hover:bg-gray-800"
           >
             Users
-          </a>
-          <a
+          </Link>
+          <Link
             href="/admin/costs"
             className="block text-sm px-3 py-2 rounded-lg hover:bg-gray-800"
           >
             Costs
-          </a>
+          </Link>
         </nav>
         <form action={logout}>
           <button
