@@ -21,7 +21,7 @@ export function SiteHeader() {
             Entrar
           </Link>
           <Link
-            href="/register"
+            href="/login"
             className={cn(buttonVariants({ size: 'sm' }))}
           >
             Comece agora

@@ -28,10 +28,10 @@ describe('Landing page', () => {
     }
   })
 
-  it('hero has a primary CTA to /register', () => {
+  it('hero has a primary CTA to /login', () => {
     const hero = screen.getByTestId('hero')
     const cta = within(hero).getByRole('link', { name: /comece agora/i })
-    expect(cta).toHaveAttribute('href', '/register')
+    expect(cta).toHaveAttribute('href', '/login')
   })
 
   it('hero has a secondary CTA anchored to #como-funciona', () => {
@@ -40,11 +40,11 @@ describe('Landing page', () => {
     expect(link).toHaveAttribute('href', '#como-funciona')
   })
 
-  it('renders multiple Comece agora CTAs that all point to /register', () => {
+  it('renders multiple Comece agora CTAs that all point to /login', () => {
     const allCtas = screen.getAllByRole('link', { name: /comece agora/i })
     expect(allCtas.length).toBeGreaterThanOrEqual(2)
     for (const cta of allCtas) {
-      expect(cta).toHaveAttribute('href', '/register')
+      expect(cta).toHaveAttribute('href', '/login')
     }
   })
 })

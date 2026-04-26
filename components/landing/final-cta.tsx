@@ -19,7 +19,7 @@ export function FinalCta() {
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
-              href="/register"
+              href="/login"
               className={cn(
                 buttonVariants({ size: 'lg' }),
                 'w-full bg-surface text-primary hover:bg-background sm:w-auto'
