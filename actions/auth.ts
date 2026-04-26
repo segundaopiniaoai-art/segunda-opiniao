@@ -1,53 +1,26 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { headers } from 'next/headers'
 
-export async function login(
-  _prevState: { error: string | null },
-  formData: FormData
-): Promise<{ error: string | null }> {
+export async function loginWithGoogle() {
   const supabase = await createClient()
+  const origin = (await headers()).get('origin') ?? ''
 
-  const email = (formData.get('email') as string | null)?.trim() ?? ''
-  const password = (formData.get('password') as string | null) ?? ''
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${origin}/auth/callback`,
+    },
+  })
 
-  if (!email || !password) {
-    return { error: 'Email and password are required.' }
+  if (error || !data.url) {
+    redirect('/login?error=auth_failed')
   }
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
-
-  if (error) {
-    return { error: error.message }
-  }
-
-  revalidatePath('/', 'layout')
-  redirect('/dashboard')
-}
-
-export async function register(
-  _prevState: { error: string | null },
-  formData: FormData
-): Promise<{ error: string | null }> {
-  const supabase = await createClient()
-
-  const email = (formData.get('email') as string | null)?.trim() ?? ''
-  const password = (formData.get('password') as string | null) ?? ''
-
-  if (!email || !password) {
-    return { error: 'Email and password are required.' }
-  }
-
-  const { error } = await supabase.auth.signUp({ email, password })
-
-  if (error) {
-    return { error: error.message }
-  }
-
-  revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  redirect(data.url)
 }
 
 export async function logout() {
