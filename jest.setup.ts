@@ -1,1 +1,1 @@
-// Jest global setup — add custom matchers here if needed
+import '@testing-library/jest-dom'
