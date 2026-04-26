@@ -1,4 +1,5 @@
-import Link from 'next/link'
+import { SiteHeader } from '@/components/layout/site-header'
+import { SiteFooter } from '@/components/layout/site-footer'
 
 export default function PublicLayout({
   children,
@@ -6,17 +7,18 @@ export default function PublicLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen bg-white">
-      <nav className="border-b px-6 py-4 flex items-center justify-between">
-        <a href="/" className="font-semibold text-lg">SaaS App</a>
-        <div className="flex gap-4 text-sm">
-          <Link href="/login" className="text-gray-600 hover:text-black">Sign in</Link>
-          <Link href="/register" className="bg-black text-white px-4 py-1.5 rounded-lg">
-            Get started
-          </Link>
-        </div>
-      </nav>
-      <main>{children}</main>
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
+      >
+        Pular para o conteúdo
+      </a>
+      <SiteHeader />
+      <main id="main" className="flex-1">
+        {children}
+      </main>
+      <SiteFooter />
     </div>
   )
 }
