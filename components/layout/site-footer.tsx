@@ -19,24 +19,24 @@ export function SiteFooter() {
             </h2>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
               <li>
-                <a href="/#como-funciona" className="hover:text-foreground">
+                <Link href="/#como-funciona" className="hover:text-foreground">
                   Como funciona
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/#beneficios" className="hover:text-foreground">
+                <Link href="/#beneficios" className="hover:text-foreground">
                   Benefícios
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/#confiabilidade" className="hover:text-foreground">
+                <Link href="/#confiabilidade" className="hover:text-foreground">
                   Confiabilidade
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/#faq" className="hover:text-foreground">
+                <Link href="/#faq" className="hover:text-foreground">
                   FAQ
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
