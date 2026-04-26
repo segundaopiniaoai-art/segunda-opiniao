@@ -1,12 +1,11 @@
-import Link from 'next/link'
 import { LoginForm } from '@/components/auth/login-form'
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ reason?: string }>
+  searchParams: Promise<{ reason?: string; error?: string }>
 }) {
-  const { reason } = await searchParams
+  const { reason, error } = await searchParams
 
   return (
     <div className="max-w-sm mx-auto py-20 px-6">
@@ -16,13 +15,12 @@ export default async function LoginPage({
           Your session expired. Please sign in again.
         </p>
       )}
+      {error === 'auth_failed' && (
+        <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">
+          Authentication failed. Please try again.
+        </p>
+      )}
       <LoginForm />
-      <p className="mt-6 text-sm text-center text-gray-600">
-        No account?{' '}
-        <Link href="/register" className="underline text-black">
-          Create one
-        </Link>
-      </p>
     </div>
   )
 }
