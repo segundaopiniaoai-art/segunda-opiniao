@@ -16,10 +16,6 @@ describe('determineAccess', () => {
       expect(determineAccess('/login', null, null)).toEqual({ action: 'allow' })
     })
 
-    it('allows unauthenticated access to /register', () => {
-      expect(determineAccess('/register', null, null)).toEqual({ action: 'allow' })
-    })
-
     it('redirects authenticated user away from /login to /dashboard', () => {
       expect(determineAccess('/login', user, 'user')).toEqual({
         action: 'redirect',
@@ -27,12 +23,6 @@ describe('determineAccess', () => {
       })
     })
 
-    it('redirects authenticated admin away from /register to /dashboard', () => {
-      expect(determineAccess('/register', user, 'admin')).toEqual({
-        action: 'redirect',
-        destination: '/dashboard',
-      })
-    })
   })
 
   describe('protected paths', () => {

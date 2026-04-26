@@ -1,4 +1,4 @@
-const PUBLIC_ONLY_PATHS = ['/login', '/register']
+const PUBLIC_ONLY_PATHS = ['/login']
 const PROTECTED_PREFIXES = ['/dashboard']
 const ADMIN_PREFIXES = ['/admin']
 
