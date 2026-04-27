@@ -16,6 +16,7 @@ Criar a experiência completa para o usuário solicitar uma segunda opinião mé
 - Upload direto ao Supabase Storage via signed URLs (não passa pelo servidor Next.js)
 - Lista de especialistas vem de tabela no Supabase (populada com seed data)
 - Dashboard atualizado para listar consultas do usuário
+- Server Actions usam o Supabase client autenticado do usuário (via `@supabase/ssr`), não service role
 
 ## Estrutura de Dados
 
@@ -40,6 +41,7 @@ Criar a experiência completa para o usuário solicitar uma segunda opinião mé
 | status | text | 'pending', 'processing', 'completed' |
 | result | text (nullable) | Resposta do agente (futuro) |
 | created_at | timestamptz | Default now() |
+| updated_at | timestamptz | Default now(), atualizado via trigger on UPDATE |
 
 ### Tabela `consultation_files`
 
@@ -52,30 +54,115 @@ Criar a experiência completa para o usuário solicitar uma segunda opinião mé
 | storage_path | text | Caminho no Storage bucket |
 | created_at | timestamptz | Default now() |
 
-### RLS
+### Trigger `updated_at`
 
-- `consultations`: usuários só leem/criam onde `auth.uid() = user_id`
-- `consultation_files`: acesso via join com `consultations` (mesmo user_id)
-- `specialists`: leitura pública onde `active = true`
+```sql
+create or replace function update_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger set_consultations_updated_at
+  before update on consultations
+  for each row execute function update_updated_at();
+```
+
+### Políticas RLS
+
+**`specialists` — leitura pública (ativos):**
+```sql
+create policy "Anyone can read active specialists"
+  on specialists for select
+  using (active = true);
+```
+
+**`consultations` — SELECT:**
+```sql
+create policy "Users can read own consultations"
+  on consultations for select
+  using (auth.uid() = user_id);
+```
+
+**`consultations` — INSERT:**
+```sql
+create policy "Users can create own consultations"
+  on consultations for insert
+  with check (auth.uid() = user_id);
+```
+
+**`consultations` — UPDATE (status only, via confirm action):**
+```sql
+create policy "Users can update own consultations"
+  on consultations for update
+  using (auth.uid() = user_id);
+```
+
+**`consultation_files` — SELECT:**
+```sql
+create policy "Users can read own consultation files"
+  on consultation_files for select
+  using (
+    exists (
+      select 1 from consultations
+      where consultations.id = consultation_files.consultation_id
+      and consultations.user_id = auth.uid()
+    )
+  );
+```
+
+**`consultation_files` — INSERT:**
+```sql
+create policy "Users can create files for own consultations"
+  on consultation_files for insert
+  with check (
+    exists (
+      select 1 from consultations
+      where consultations.id = consultation_files.consultation_id
+      and consultations.user_id = auth.uid()
+    )
+  );
+```
 
 ### Storage
 
-- Bucket: `consultation-files` (privado)
+- **Bucket:** `consultation-files` (privado) — criado via migration SQL (`insert into storage.buckets`)
 - Estrutura: `{user_id}/{consultation_id}/{file_name}`
-- RLS: usuário só acessa seus próprios arquivos
-- Signed upload URLs com expiração de 5 minutos
+- Signed upload URLs com expiração de 5 minutos e `content-type: application/pdf` obrigatório
+- Políticas de storage: usuário só faz upload/leitura em paths que começam com seu próprio `auth.uid()`
 
 ### Seed Data
 
 Especialistas iniciais: Cardiologista, Oncologista, Neurologista, Ortopedista, Dermatologista, Clínico Geral.
 
-## Rotas
+Inseridos via migration SQL.
+
+## Rotas e Middleware
+
+### Novas rotas
 
 | Rota | Grupo | Propósito |
 |---|---|---|
 | `/consultas/nova` | (protected) | Criação — upload de PDFs + seleção de especialista |
 | `/consultas/[id]` | (protected) | Status/resultado de uma consulta |
 | `/dashboard` | (protected) | Atualizado com lista de consultas |
+
+### Atualização do middleware
+
+Adicionar `/consultas` ao `PROTECTED_PREFIXES` em `lib/auth/route-access.ts`:
+
+```ts
+const PROTECTED_PREFIXES = ['/dashboard', '/consultas']
+```
+
+### Atualização do sidebar
+
+Atualizar `app/(protected)/layout.tsx`:
+- Trocar "SaaS App" por "Segunda Opinião"
+- Adicionar link "Nova Consulta" na navegação
+- Traduzir "Sign out" para "Sair"
 
 ## Componentes
 
@@ -104,18 +191,23 @@ Especialistas iniciais: Cardiologista, Oncologista, Neurologista, Ortopedista, D
    - Valida specialist_id existe e está ativo
    - Cria registro em `consultations` (status: 'pending')
    - Cria registros em `consultation_files` com storage_paths esperados
-   - Gera signed upload URLs para cada arquivo via Supabase Storage
+   - Gera signed upload URLs para cada arquivo via Supabase Storage, com `content-type: application/pdf` obrigatório
    - Retorna `{ consultationId, uploadUrls[] }`
 3. **Client** faz upload direto ao Storage para cada arquivo (com progress tracking)
 4. **Client** chama Server Action `confirmConsultationUpload(consultationId)` após todos os uploads
-5. **Server Action** verifica arquivos no Storage, atualiza status para 'processing'
+5. **Server Action `confirmConsultationUpload`:**
+   - Valida sessão do usuário
+   - Verifica que a consulta pertence ao usuário e está com status 'pending'
+   - Para cada arquivo em `consultation_files`: verifica existência no Storage via `supabase.storage.from('consultation-files').list()` no path esperado
+   - Se todos os arquivos existem: atualiza status para 'processing'
+   - Se algum arquivo falta: retorna erro com lista dos arquivos ausentes
 6. **Client** redireciona para `/consultas/[id]`
 
 ### Tratamento de erros
 
 - Upload falha em arquivo específico: mostra erro naquele arquivo, permite retry individual
 - Criação no banco falha: mensagem genérica de erro, formulário preserva estado
-- Usuário fecha a página no meio: consulta fica como 'pending', pode ser limpa por job futuro
+- Usuário fecha a página no meio: consulta fica como 'pending' (campo `updated_at` permite identificar consultas abandonadas para limpeza futura)
 
 ## Página de Status (`/consultas/[id]`)
 
@@ -140,8 +232,10 @@ Especialistas iniciais: Cardiologista, Oncologista, Neurologista, Ortopedista, D
 
 | Camada | Validação |
 |---|---|
-| Client | Tipo PDF, máx 5 arquivos, 10MB por arquivo, pelo menos 1 arquivo, especialista selecionado |
-| Server Action | Sessão válida, specialist_id existe e ativo, re-valida limites |
+| Client | Tipo PDF (extensão + MIME), máx 5 arquivos, 10MB por arquivo, pelo menos 1 arquivo, especialista selecionado |
+| Server Action | Sessão válida, specialist_id existe e ativo, re-valida limites de quantidade e tamanho |
+| Signed URL | Content-type restrito a `application/pdf` |
+| Confirm Action | Verifica existência de todos os arquivos no Storage |
 | RLS | User só acessa próprias consultas e arquivos |
 | Storage | Signed URLs com expiração curta (~5 min), path restrito ao user_id |
 
@@ -151,3 +245,5 @@ Especialistas iniciais: Cardiologista, Oncologista, Neurologista, Ortopedista, D
 - Integração real com Claude Managed Agents (o status ficará como 'processing' sem resolução automática por enquanto)
 - Notificações por email
 - Histórico de versões de resultado
+- Rate limiting na criação de consultas (adicionar se necessário)
+- Limpeza automática de consultas 'pending' abandonadas (job futuro)
