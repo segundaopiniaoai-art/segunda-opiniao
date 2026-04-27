@@ -64,7 +64,11 @@ export function ConsultationStatusLive({ initial }: { initial: ConsultationRow }
           filter: `id=eq.${initial.id}`,
         },
         (payload) => {
-          setConsultation((prev) => ({ ...prev, ...payload.new as Partial<ConsultationRow> }))
+          const next = payload.new as Partial<ConsultationRow>
+          setConsultation((prev) => ({ ...prev, ...next }))
+          if (next.status === 'completed' || next.status === 'failed') {
+            supabase.removeChannel(channel)
+          }
         }
       )
       .subscribe()

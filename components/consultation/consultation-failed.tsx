@@ -1,6 +1,6 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { AlertTriangle, RefreshCcw } from 'lucide-react'
 import { retryConsultation } from '@/actions/consultation'
 import { Button } from '@/components/ui/button'
@@ -12,10 +12,15 @@ type Props = {
 
 export function ConsultationFailed({ consultationId, failureReason }: Props) {
   const [isPending, startTransition] = useTransition()
+  const [retryError, setRetryError] = useState<string | null>(null)
 
   const handleRetry = () => {
+    setRetryError(null)
     startTransition(async () => {
-      await retryConsultation(consultationId)
+      const result = await retryConsultation(consultationId)
+      if ('error' in result) {
+        setRetryError(result.error)
+      }
     })
   }
 
@@ -34,6 +39,7 @@ export function ConsultationFailed({ consultationId, failureReason }: Props) {
         <RefreshCcw className="h-4 w-4 mr-2" />
         {isPending ? 'Reenviando...' : 'Tentar novamente'}
       </Button>
+      {retryError && <p className="text-sm text-red-700">{retryError}</p>}
     </div>
   )
 }
