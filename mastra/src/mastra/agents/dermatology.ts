@@ -2,6 +2,7 @@ import { Agent } from '@mastra/core/agent'
 import { specialistModel, sharedGuidelines } from './shared'
 
 export const dermatology = new Agent({
+  id: 'dermatology',
   name: 'dermatology',
   instructions: `${sharedGuidelines}
 

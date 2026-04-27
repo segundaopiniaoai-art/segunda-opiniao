@@ -21,4 +21,14 @@ const config: Config = {
     : ['/node_modules/', '<rootDir>/__tests__/auth.integration.test.ts'],
 }
 
-export default createJestConfig(config)
+const baseConfig = createJestConfig(config)
+
+export default async () => {
+  const resolved = await baseConfig()
+  // next/jest's transformIgnorePatterns doesn't know about mastra's ESM deps.
+  // Inject tokenx into the existing exception list so it gets transformed.
+  resolved.transformIgnorePatterns = resolved.transformIgnorePatterns?.map((p: string) =>
+    p.includes('(?!(geist|') ? p.replace('(?!(geist|', '(?!(tokenx|geist|') : p,
+  )
+  return resolved
+}

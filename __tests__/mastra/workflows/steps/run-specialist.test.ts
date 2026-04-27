@@ -36,6 +36,10 @@ const baseInput = {
   ],
 }
 
+// The step's execute only uses inputData; cast to satisfy the broader ExecuteFunctionParams type.
+const execute = (input: Record<string, unknown>) =>
+  runSpecialist.execute({ inputData: input } as Parameters<typeof runSpecialist.execute>[0])
+
 describe('runSpecialist step', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -44,7 +48,7 @@ describe('runSpecialist step', () => {
   it('builds messages with one file part per PDF plus a final text part', async () => {
     mockGenerate.mockResolvedValue({ object: minimalResult })
 
-    await runSpecialist.execute({ inputData: baseInput })
+    await execute(baseInput)
 
     expect(mockGenerate).toHaveBeenCalledTimes(1)
     const [messages] = mockGenerate.mock.calls[0]
@@ -68,7 +72,7 @@ describe('runSpecialist step', () => {
     mockGenerate.mockResolvedValue({ object: minimalResult })
     const input = { ...baseInput, patientContext: 'tenho falta de ar' }
 
-    await runSpecialist.execute({ inputData: input })
+    await execute(input)
 
     const [messages] = mockGenerate.mock.calls[0]
     const textPart = messages[0].content[messages[0].content.length - 1]
@@ -80,7 +84,7 @@ describe('runSpecialist step', () => {
   it('uses the default text part when patientContext is null', async () => {
     mockGenerate.mockResolvedValue({ object: minimalResult })
 
-    await runSpecialist.execute({ inputData: baseInput })
+    await execute(baseInput)
 
     const [messages] = mockGenerate.mock.calls[0]
     const textPart = messages[0].content[messages[0].content.length - 1]
@@ -90,17 +94,17 @@ describe('runSpecialist step', () => {
   it('calls agent.generate with output: consultationResultSchema and returns wrapped result', async () => {
     mockGenerate.mockResolvedValue({ object: minimalResult })
 
-    const result = await runSpecialist.execute({ inputData: baseInput })
+    const result = await execute(baseInput)
 
     const [, options] = mockGenerate.mock.calls[0]
-    expect(options).toEqual({ output: consultationResultSchema })
+    expect(options).toEqual({ structuredOutput: { schema: consultationResultSchema } })
     expect(result).toEqual({ consultationId: 'consultation-1', result: minimalResult })
   })
 
   it('throws and marks failed when agentKey is unknown', async () => {
     const input = { ...baseInput, agentKey: 'unknown' }
 
-    await expect(runSpecialist.execute({ inputData: input })).rejects.toThrow(
+    await expect(execute(input)).rejects.toThrow(
       'Agent não encontrado: unknown'
     )
     expect(mockMarkFailed).toHaveBeenCalledWith(
@@ -112,7 +116,7 @@ describe('runSpecialist step', () => {
   it('throws and marks failed when agent.generate rejects', async () => {
     mockGenerate.mockRejectedValue(new Error('boom'))
 
-    await expect(runSpecialist.execute({ inputData: baseInput })).rejects.toThrow('boom')
+    await expect(execute(baseInput)).rejects.toThrow('boom')
     expect(mockMarkFailed).toHaveBeenCalledWith(
       'consultation-1',
       'Não conseguimos analisar seus exames. Tente novamente.'

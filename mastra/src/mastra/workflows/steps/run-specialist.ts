@@ -44,7 +44,7 @@ export const runSpecialist = createStep({
       ]
 
       const { object } = await agent.generate(messages, {
-        output: consultationResultSchema,
+        structuredOutput: { schema: consultationResultSchema },
       })
 
       return { consultationId: inputData.consultationId, result: object }
