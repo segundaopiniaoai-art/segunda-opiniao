@@ -216,22 +216,14 @@ insert into public.specialists (name, description, icon, agent_key) values
   ('Clínico Geral',  'Avaliação médica abrangente e orientação diagnóstica',            'stethoscope', 'general_practice');
 ```
 
-- [ ] **Step 2: Apply the migration locally**
-
-Run: `npx supabase migration up` (requires local Supabase running via `npx supabase start`)
-Expected: Migration applied successfully, tables created, Realtime publication updated.
-
-- [ ] **Step 3: Verify**
-
-Run: `npx supabase db reset` (full reset to verify migration from scratch)
-Expected: All tables, policies, triggers, bucket, Realtime publication, and seed data created.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 2: Commit**
 
 ```bash
 git add supabase/migrations/20260426000000_create_consultation_tables.sql
 git commit -m "feat: add consultation tables, RLS, storage, Realtime, and seed data"
 ```
+
+> Migration application/reset happens in **Task 20 (Execução & Verificação)**.
 
 ---
 
@@ -265,23 +257,13 @@ it('redirects unauthenticated user from /consultas/some-id to /login', () => {
 })
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
-
-Run: `npx jest __tests__/lib/auth/route-access.test.ts --verbose`
-Expected: 3 new tests FAIL.
-
-- [ ] **Step 3: Update route-access.ts**
+- [ ] **Step 2: Update route-access.ts**
 
 ```ts
 const PROTECTED_PREFIXES = ['/dashboard', '/consultas']
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
-
-Run: `npx jest __tests__/lib/auth/route-access.test.ts --verbose`
-Expected: All tests PASS.
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add lib/auth/route-access.ts __tests__/lib/auth/route-access.test.ts
@@ -343,12 +325,7 @@ export default function ProtectedLayout({
 }
 ```
 
-- [ ] **Step 2: Verify the app compiles**
-
-Run: `npx next build`
-Expected: No build errors.
-
-- [ ] **Step 3: Commit**
+- [ ] **Step 2: Commit**
 
 ```bash
 git add app/\(protected\)/layout.tsx
@@ -360,18 +337,13 @@ git commit -m "feat: update sidebar with branding, navigation, and Portuguese la
 ## Task 4: Mastra Project Bootstrap
 
 **Files:**
-- Modify: `package.json` (add deps)
 - Create: `.vercelignore`
 - Create: `mastra/index.ts`
 - Create: `mastra/lib/supabase-admin.ts`
 
-- [ ] **Step 1: Install dependencies**
+> Dependency installation (`@mastra/core`, `@ai-sdk/anthropic`, `zod`) happens in **Task 20 (Execução & Verificação)**.
 
-```bash
-npm install @mastra/core @ai-sdk/anthropic zod
-```
-
-- [ ] **Step 2: Create `.vercelignore`**
+- [ ] **Step 1: Create `.vercelignore`**
 
 ```
 mastra/
@@ -379,7 +351,7 @@ mastra/
 
 This prevents Vercel from including the Mastra service code in the Next.js build.
 
-- [ ] **Step 3: Create `mastra/lib/supabase-admin.ts`**
+- [ ] **Step 2: Create `mastra/lib/supabase-admin.ts`**
 
 ```ts
 import { createClient } from '@supabase/supabase-js'
@@ -396,7 +368,7 @@ export const supabaseAdmin = createClient(url, serviceRoleKey, {
 })
 ```
 
-- [ ] **Step 4: Create `mastra/index.ts` (skeleton — agents/workflow added in later tasks)**
+- [ ] **Step 3: Create `mastra/index.ts` (skeleton — agents/workflow added in later tasks)**
 
 ```ts
 import { Mastra } from '@mastra/core'
@@ -421,17 +393,14 @@ export const mastra = new Mastra({
 })
 ```
 
-- [ ] **Step 5: Verify Mastra dev server starts**
-
-Run: `npx mastra dev`
-Expected: Server starts on port 4111 (default), no agents/workflows registered yet (empty).
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add package.json package-lock.json .vercelignore mastra/
+git add .vercelignore mastra/
 git commit -m "feat: bootstrap Mastra service with auth middleware"
 ```
+
+> Note: `package.json` / `package-lock.json` will be committed in Task 20 after `npm install`.
 
 ---
 
@@ -602,12 +571,7 @@ describe('specialist agent instructions', () => {
 })
 ```
 
-- [ ] **Step 6: Run tests**
-
-Run: `npx jest __tests__/mastra/agents/instructions.test.ts`
-Expected: All snapshots created on first run.
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add mastra/agents/ __tests__/mastra/agents/ mastra/index.ts
@@ -868,12 +832,7 @@ export const persistResult = createStep({
 
 Use mocks for `mastra.getAgent` and `supabaseAdmin`.
 
-- [ ] **Step 7: Run tests**
-
-Run: `npx jest __tests__/mastra/workflows/steps/`
-Expected: All tests PASS.
-
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add mastra/lib/ mastra/workflows/steps/ __tests__/mastra/
@@ -939,11 +898,7 @@ export const mastra = new Mastra({
 })
 ```
 
-- [ ] **Step 3: Smoke test the workflow locally**
-
-Start `npx mastra dev` and POST manually (or via Mastra Playground) with a `consultationId` from a `processing` row in local Supabase. Confirm the workflow runs all 4 steps.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add mastra/workflows/consultation-workflow.ts mastra/index.ts
@@ -1025,12 +980,7 @@ export async function startConsultationWorkflow(consultationId: string) {
 }
 ```
 
-- [ ] **Step 3: Run tests**
-
-Run: `npx jest __tests__/lib/mastra/client.test.ts`
-Expected: PASS.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add lib/mastra/ __tests__/lib/mastra/
@@ -1216,12 +1166,7 @@ export async function retryConsultation(consultationId: string): Promise<Confirm
 }
 ```
 
-- [ ] **Step 3: Run tests**
-
-Run: `npx jest __tests__/actions/consultation.test.ts --verbose`
-Expected: All tests PASS.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add actions/consultation.ts __tests__/actions/consultation.test.ts
@@ -1296,12 +1241,7 @@ describe('PdfDropzone', () => {
 })
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
-
-Run: `npx jest __tests__/components/consultation/pdf-dropzone.test.tsx --verbose`
-Expected: FAIL — module not found.
-
-- [ ] **Step 3: Implement the component**
+- [ ] **Step 2: Implement the component**
 
 Create `components/consultation/pdf-dropzone.tsx`:
 
@@ -1450,12 +1390,7 @@ export function PdfDropzone({ files, onChange }: Props) {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
-
-Run: `npx jest __tests__/components/consultation/pdf-dropzone.test.tsx --verbose`
-Expected: All tests PASS.
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add components/consultation/pdf-dropzone.tsx __tests__/components/consultation/pdf-dropzone.test.tsx
@@ -1510,7 +1445,7 @@ export function PatientContextInput({ value, onChange }: Props) {
 }
 ```
 
-- [ ] **Step 3: Run tests, commit.**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add components/consultation/patient-context-input.tsx __tests__/components/consultation/patient-context-input.test.tsx
@@ -1583,12 +1518,7 @@ describe('SpecialistPicker', () => {
 })
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
-
-Run: `npx jest __tests__/components/consultation/specialist-picker.test.tsx --verbose`
-Expected: FAIL — module not found.
-
-- [ ] **Step 3: Implement the component**
+- [ ] **Step 2: Implement the component**
 
 Create `components/consultation/specialist-picker.tsx`:
 
@@ -1658,12 +1588,7 @@ export function SpecialistPicker({ specialists, selectedId, onSelect }: Props) {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
-
-Run: `npx jest __tests__/components/consultation/specialist-picker.test.tsx --verbose`
-Expected: All tests PASS.
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add components/consultation/specialist-picker.tsx __tests__/components/consultation/specialist-picker.test.tsx
@@ -1844,12 +1769,7 @@ export function ConsultationForm({ specialists }: Props) {
 }
 ```
 
-- [ ] **Step 2: Verify build**
-
-Run: `npx next build`
-Expected: No build errors.
-
-- [ ] **Step 3: Commit**
+- [ ] **Step 2: Commit**
 
 ```bash
 git add components/consultation/consultation-form.tsx
@@ -1887,12 +1807,7 @@ export default async function NovaConsultaPage() {
 }
 ```
 
-- [ ] **Step 2: Verify the page loads**
-
-Run: `npx next dev` and navigate to `/consultas/nova` (logged in)
-Expected: Page renders with dropzone, context textarea, and specialist cards.
-
-- [ ] **Step 3: Commit**
+- [ ] **Step 2: Commit**
 
 ```bash
 git add app/\(protected\)/consultas/nova/page.tsx
@@ -2216,7 +2131,7 @@ export function ConsultationStatusLive({ initial }: { initial: ConsultationRow }
 
 Cover: each section renders; redFlags section hidden when empty; severity badges by class; confidence badge color.
 
-- [ ] **Step 5: Run tests, commit.**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add components/consultation/ __tests__/components/consultation/consultation-result.test.tsx
@@ -2272,12 +2187,7 @@ export default async function ConsultationPage({
 }
 ```
 
-- [ ] **Step 2: Verify build**
-
-Run: `npx next build`
-Expected: No errors.
-
-- [ ] **Step 3: Commit**
+- [ ] **Step 2: Commit**
 
 ```bash
 git add app/\(protected\)/consultas/\[id\]/page.tsx
@@ -2408,12 +2318,7 @@ export default async function DashboardPage() {
 }
 ```
 
-- [ ] **Step 3: Verify**
-
-Run: `npx next dev` and navigate to `/dashboard`
-Expected: Empty state with "Criar sua primeira consulta" button or list of consultations.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add components/dashboard/consultation-list.tsx app/\(protected\)/dashboard/page.tsx
@@ -2447,33 +2352,123 @@ Trigger a real workflow against staging Supabase and confirm `consultations.stat
 
 ---
 
-## Task 20: End-to-End Smoke Test
+## Task 20: Execução & Verificação
 
-- [ ] **Step 1: Start local Supabase, Mastra, and Next.js**
+> **Esta task agrupa TODOS os comandos `npm`/`npx`/dev-server do plano.** Tasks anteriores (1–19) só escrevem código e fazem commits. Esta task será executada pelo dono em uma sessão separada (terminal próprio), não por agente automatizado.
+>
+> Pré-condições antes de começar: tasks 1–19 estão concluídas e commitadas; `.env.local` existe com `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `MASTRA_URL=http://localhost:4111`, `MASTRA_API_KEY=<dev-secret>`; `mastra/.env` existe com `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `MASTRA_API_KEY=<mesmo-dev-secret>`.
+
+### Step 1: Instalar dependências
+
+```bash
+npm install @mastra/core @ai-sdk/anthropic zod
+```
+
+Esperado: `package.json` e `package-lock.json` atualizados.
+
+### Step 2: Commit do lockfile
+
+```bash
+git add package.json package-lock.json
+git commit -m "chore: add Mastra and Anthropic SDK dependencies"
+```
+
+### Step 3: Subir Supabase local e aplicar migration
 
 ```bash
 npx supabase start
-npx mastra dev    # in second terminal — uses .env with local Supabase service role
-npx next dev       # in third terminal — uses .env with MASTRA_URL=http://localhost:4111
+npx supabase migration up
 ```
 
-- [ ] **Step 2: Manual smoke checklist**
+Esperado: serviços do Supabase rodando localmente; migration `20260426000000_create_consultation_tables.sql` aplicada com tabelas, RLS, trigger, bucket `consultation-files`, publicação Realtime e seed data.
 
-1. Sign in with Google → dashboard empty state
-2. Click "Criar sua primeira consulta"
-3. Drag/drop a sample medical PDF; remove and re-add to validate
-4. Type a short context message
-5. Select a specialist → submit
-6. Watch the page redirect to `/consultas/[id]` with `processing` status
-7. Within ~30–90s, status flips to `completed` via Realtime — result sections render
-8. Refresh the page — content persists (read from DB)
-9. Force a failure (e.g., set `MASTRA_URL` to a wrong port temporarily, retry) — verify `failed` card + retry button
-10. Click "Tentar novamente" with proper Mastra running — flow recovers
-11. Sidebar shows "Segunda Opinião", "Nova Consulta", "Sair"
+### Step 4: Reset do banco para validar idempotência da migration
 
-- [ ] **Step 3: Fix issues; final commit if needed.**
+```bash
+npx supabase db reset
+```
+
+Esperado: banco resetado, migration reaplicada do zero, sem erro.
+
+### Step 5: Rodar a suite completa de testes unitários
+
+```bash
+npx jest --verbose
+```
+
+Esperado: todos os testes passam — `route-access`, `lib/mastra/client`, `actions/consultation`, `mastra/agents/instructions` (snapshots criados na primeira rodada), `mastra/workflows/steps/run-specialist`, `pdf-dropzone`, `patient-context-input`, `specialist-picker`, `consultation-result`.
+
+> Se `instructions` snapshots forem criados na primeira rodada, comitar:
+> ```bash
+> git add __tests__/mastra/agents/__snapshots__/
+> git commit -m "test: snapshot specialist agent instructions"
+> ```
+
+### Step 6: Build do Next.js para validar compilação
+
+```bash
+npx next build
+```
+
+Esperado: build conclui sem erros TypeScript, lint warnings ou errors de Server/Client Components.
+
+### Step 7: Iniciar o stack de dev em três terminais
+
+Terminal 1 (Supabase, se ainda não estiver rodando do Step 3):
+```bash
+npx supabase start
+```
+
+Terminal 2 (Mastra):
+```bash
+npx mastra dev
+```
+Esperado: serviço sobe em `http://localhost:4111` com agentes e workflow registrados.
+
+Terminal 3 (Next.js):
+```bash
+npx next dev
+```
+Esperado: app sobe em `http://localhost:3000`.
+
+### Step 8: Smoke test manual end-to-end
+
+Com os três processos rodando, executar o checklist abaixo no navegador:
+
+1. Acessar `http://localhost:3000` → entrar com Google → dashboard mostra estado vazio
+2. Clicar em "Criar sua primeira consulta"
+3. Arrastar um PDF de exame de teste; remover e re-adicionar para validar
+4. Digitar um contexto curto (ex.: "tenho sentido falta de ar")
+5. Selecionar um especialista → clicar "Solicitar Segunda Opinião"
+6. Verificar redirecionamento para `/consultas/[id]` com status `processing` e spinner azul
+7. Aguardar 30–90s — status muda para `completed` via Realtime sem refresh; seções renderizam (Resumo, Achados com badges de severity, Análise, Recomendações, Perguntas, Sinais de alerta se houver, Confiança, Aviso)
+8. Refresh manual da página — conteúdo persiste (lido do DB)
+9. Voltar ao dashboard — consulta aparece na lista com badge verde
+10. Forçar falha: parar o processo Mastra (Ctrl+C no terminal 2), criar nova consulta — verificar card vermelho com `failure_reason` + botão "Tentar novamente"
+11. Reiniciar Mastra (`npx mastra dev`) e clicar "Tentar novamente" — fluxo recupera, status volta a `processing` e completa
+12. Conferir sidebar: branding "Segunda Opinião", links "Minhas Consultas" + "Nova Consulta", botão "Sair"
+
+### Step 9: Verificar Mastra Cloud (se já provisionado pela Task 19)
+
+```bash
+curl -i ${MASTRA_URL}/api/workflows/consultationWorkflow/start-async -X POST
+```
+Esperado: `HTTP/1.1 401 Unauthorized` (sem bearer).
+
+```bash
+curl -i ${MASTRA_URL}/api/workflows/consultationWorkflow/start-async \
+  -X POST \
+  -H "Authorization: Bearer ${MASTRA_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"inputData":{"consultationId":"<uuid-de-consulta-em-processing>"}}'
+```
+Esperado: `200 OK` com `{ "runId": "..." }` e workflow disparado.
+
+### Step 10: Commit final se houver fixes do smoke test
 
 ```bash
 git add -A
 git commit -m "fix: smoke-test findings"
 ```
+
+(Pular se nada foi ajustado.)
