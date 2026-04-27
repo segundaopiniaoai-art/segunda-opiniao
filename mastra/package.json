@@ -1,0 +1,17 @@
+{
+  "name": "segunda-opiniao-mastra",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "mastra dev",
+    "build": "mastra build",
+    "deploy": "mastra server deploy"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.71",
+    "@mastra/core": "^1.28.0",
+    "@supabase/supabase-js": "^2.105.0",
+    "zod": "^3.25.76"
+  }
+}

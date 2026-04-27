@@ -10,6 +10,7 @@ const config: Config = {
   globalSetup: '<rootDir>/jest.global-setup.ts',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   moduleNameMapper: {
+    '^@/mastra/(.*)$': '<rootDir>/mastra/src/mastra/$1',
     '^@/(.*)$': '<rootDir>/$1',
   },
   testMatch: isIntegration
