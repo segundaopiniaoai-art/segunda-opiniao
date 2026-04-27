@@ -1,3 +1,6 @@
+/**
+ * @jest-environment jsdom
+ */
 import { render, screen } from '@testing-library/react'
 import { ConsultationResult } from '@/components/consultation/consultation-result'
 import type { ConsultationResult as Result } from '@/mastra/schemas/consultation-result'

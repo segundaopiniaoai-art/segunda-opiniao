@@ -1,3 +1,6 @@
+/**
+ * @jest-environment jsdom
+ */
 import { render, screen, fireEvent } from '@testing-library/react'
 import { PdfDropzone } from '@/components/consultation/pdf-dropzone'
 
