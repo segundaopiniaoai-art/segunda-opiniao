@@ -1,9 +1,10 @@
 import { Mastra } from '@mastra/core'
 import { agentsByKey } from './agents'
+import { consultationWorkflow } from './workflows/consultation-workflow'
 
 export const mastra = new Mastra({
   agents: agentsByKey,
-  workflows: {},
+  workflows: { consultationWorkflow },
   server: {
     middleware: [
       {
