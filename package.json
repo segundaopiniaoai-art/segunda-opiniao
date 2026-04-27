@@ -12,6 +12,8 @@
     "test:integration": "INTEGRATION=true jest"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.71",
+    "@mastra/core": "^1.28.0",
     "@radix-ui/react-accordion": "^1.2.2",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.104.0",
@@ -21,7 +23,8 @@
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "tailwind-merge": "^2.5.5"
+    "tailwind-merge": "^2.5.5",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
