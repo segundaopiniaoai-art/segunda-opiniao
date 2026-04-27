@@ -3,7 +3,7 @@ import {
   HeartPulse, Ribbon, Brain, Bone, ScanFace, Stethoscope, ClipboardPlus,
   type LucideIcon,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 
 const iconMap: Record<string, LucideIcon> = {
   'heart-pulse': HeartPulse,
@@ -38,9 +38,7 @@ export function ConsultationList({ consultations }: Props) {
       <div className="text-center py-16">
         <ClipboardPlus className="mx-auto h-12 w-12 text-gray-300 mb-4" />
         <p className="text-gray-500 mb-4">Você ainda não tem consultas</p>
-        <Button asChild>
-          <Link href="/consultas/nova">Criar sua primeira consulta</Link>
-        </Button>
+        <Link href="/consultas/nova" className={buttonVariants()}>Criar sua primeira consulta</Link>
       </div>
     )
   }

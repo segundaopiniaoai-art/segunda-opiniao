@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { ConsultationList } from '@/components/dashboard/consultation-list'
-import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -15,9 +15,7 @@ export default async function DashboardPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Minhas Consultas</h1>
-        <Button asChild>
-          <Link href="/consultas/nova">Nova Consulta</Link>
-        </Button>
+        <Link href="/consultas/nova" className={buttonVariants()}>Nova Consulta</Link>
       </div>
       <ConsultationList consultations={consultations ?? []} />
     </div>
