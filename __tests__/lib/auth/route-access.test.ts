@@ -40,6 +40,24 @@ describe('determineAccess', () => {
     it('allows authenticated user with role=admin to access /dashboard', () => {
       expect(determineAccess('/dashboard', user, 'admin')).toEqual({ action: 'allow' })
     })
+
+    it('redirects unauthenticated user from /consultas/nova to /login', () => {
+      expect(determineAccess('/consultas/nova', null, null)).toEqual({
+        action: 'redirect',
+        destination: '/login',
+      })
+    })
+
+    it('allows authenticated user to access /consultas/nova', () => {
+      expect(determineAccess('/consultas/nova', user, 'user')).toEqual({ action: 'allow' })
+    })
+
+    it('redirects unauthenticated user from /consultas/some-id to /login', () => {
+      expect(determineAccess('/consultas/some-id', null, null)).toEqual({
+        action: 'redirect',
+        destination: '/login',
+      })
+    })
   })
 
   describe('admin paths', () => {

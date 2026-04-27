@@ -1,5 +1,5 @@
 const PUBLIC_ONLY_PATHS = ['/login']
-const PROTECTED_PREFIXES = ['/dashboard']
+const PROTECTED_PREFIXES = ['/dashboard', '/consultas']
 const ADMIN_PREFIXES = ['/admin']
 
 export type AccessDecision =
