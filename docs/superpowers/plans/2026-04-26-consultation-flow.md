@@ -297,7 +297,51 @@ git commit -m "feat: protect /consultas routes behind authentication"
 
 - [ ] **Step 1: Update the protected layout**
 
-Replace `app/(protected)/layout.tsx` with branding "Segunda Opinião", nav links "Minhas Consultas" + "Nova Consulta", logout button labeled "Sair". (See spec for exact markup; identical to the previous version of this plan.)
+Replace the full content of `app/(protected)/layout.tsx`:
+
+```tsx
+import Link from 'next/link'
+import { logout } from '@/actions/auth'
+
+export default function ProtectedLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <div className="min-h-screen flex">
+      <aside className="w-56 border-r bg-gray-50 flex flex-col p-6">
+        <Link href="/dashboard" className="font-semibold text-lg mb-8 block">
+          Segunda Opinião
+        </Link>
+        <nav className="space-y-1 flex-1">
+          <Link
+            href="/dashboard"
+            className="block text-sm px-3 py-2 rounded-lg hover:bg-gray-100"
+          >
+            Minhas Consultas
+          </Link>
+          <Link
+            href="/consultas/nova"
+            className="block text-sm px-3 py-2 rounded-lg hover:bg-gray-100"
+          >
+            Nova Consulta
+          </Link>
+        </nav>
+        <form action={logout}>
+          <button
+            type="submit"
+            className="text-sm text-gray-500 hover:text-black w-full text-left"
+          >
+            Sair
+          </button>
+        </form>
+      </aside>
+      <main className="flex-1 p-8">{children}</main>
+    </div>
+  )
+}
+```
 
 - [ ] **Step 2: Verify the app compiles**
 
@@ -516,6 +560,8 @@ export const agentsByKey = {
 
 - [ ] **Step 4: Register agents in `mastra/index.ts`**
 
+Replace the full content of `mastra/index.ts`:
+
 ```ts
 import { Mastra } from '@mastra/core'
 import { agentsByKey } from './agents'
@@ -523,7 +569,20 @@ import { agentsByKey } from './agents'
 export const mastra = new Mastra({
   agents: agentsByKey,
   workflows: {},
-  server: { /* same middleware as before */ },
+  server: {
+    middleware: [
+      {
+        handler: async (c, next) => {
+          const auth = c.req.header('authorization')
+          if (auth !== `Bearer ${process.env.MASTRA_API_KEY}`) {
+            return new Response('Unauthorized', { status: 401 })
+          }
+          return next()
+        },
+        path: '/api/workflows/*',
+      },
+    ],
+  },
 })
 ```
 
@@ -853,13 +912,30 @@ export const consultationWorkflow = createWorkflow({
 
 - [ ] **Step 2: Register in `mastra/index.ts`**
 
+Replace the full content of `mastra/index.ts`:
+
 ```ts
+import { Mastra } from '@mastra/core'
+import { agentsByKey } from './agents'
 import { consultationWorkflow } from './workflows/consultation-workflow'
 
 export const mastra = new Mastra({
   agents: agentsByKey,
   workflows: { consultationWorkflow },
-  server: { /* unchanged */ },
+  server: {
+    middleware: [
+      {
+        handler: async (c, next) => {
+          const auth = c.req.header('authorization')
+          if (auth !== `Bearer ${process.env.MASTRA_API_KEY}`) {
+            return new Response('Unauthorized', { status: 401 })
+          }
+          return next()
+        },
+        path: '/api/workflows/*',
+      },
+    ],
+  },
 })
 ```
 
@@ -1156,13 +1232,235 @@ git commit -m "feat: add server actions for consultation lifecycle and Mastra tr
 
 ## Task 11: PDF Dropzone Component
 
-(Identical to the previous version of this plan — no Mastra-related changes.)
-
 **Files:**
 - Create: `components/consultation/pdf-dropzone.tsx`
 - Create: `__tests__/components/consultation/pdf-dropzone.test.tsx`
 
-Steps: write failing tests, implement, run tests, commit. (See spec for component contract.)
+- [ ] **Step 1: Write failing tests**
+
+Create `__tests__/components/consultation/pdf-dropzone.test.tsx`:
+
+```tsx
+import { render, screen, fireEvent } from '@testing-library/react'
+import { PdfDropzone } from '@/components/consultation/pdf-dropzone'
+
+describe('PdfDropzone', () => {
+  const mockOnChange = jest.fn()
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('renders the dropzone with instructions', () => {
+    render(<PdfDropzone files={[]} onChange={mockOnChange} />)
+    expect(screen.getByText(/arraste seus arquivos PDF/i)).toBeInTheDocument()
+  })
+
+  it('shows file list when files are added', () => {
+    const files = [new File(['content'], 'exam1.pdf', { type: 'application/pdf' })]
+    render(<PdfDropzone files={files} onChange={mockOnChange} />)
+    expect(screen.getByText('exam1.pdf')).toBeInTheDocument()
+  })
+
+  it('calls onChange when remove button is clicked', () => {
+    const files = [
+      new File(['content'], 'exam1.pdf', { type: 'application/pdf' }),
+      new File(['content'], 'exam2.pdf', { type: 'application/pdf' }),
+    ]
+    render(<PdfDropzone files={files} onChange={mockOnChange} />)
+    const removeButtons = screen.getAllByRole('button', { name: /remover/i })
+    fireEvent.click(removeButtons[0])
+    expect(mockOnChange).toHaveBeenCalledWith([files[1]])
+  })
+
+  it('shows error when non-PDF file is added', () => {
+    render(<PdfDropzone files={[]} onChange={mockOnChange} />)
+    const input = screen.getByTestId('file-input')
+    const invalidFile = new File(['content'], 'photo.png', { type: 'image/png' })
+    fireEvent.change(input, { target: { files: [invalidFile] } })
+    expect(screen.getByText(/apenas arquivos PDF/i)).toBeInTheDocument()
+    expect(mockOnChange).not.toHaveBeenCalled()
+  })
+
+  it('shows error when more than 5 files total', () => {
+    const existingFiles = Array.from({ length: 5 }, (_, i) =>
+      new File(['content'], `exam${i}.pdf`, { type: 'application/pdf' })
+    )
+    render(<PdfDropzone files={existingFiles} onChange={mockOnChange} />)
+    const input = screen.getByTestId('file-input')
+    const newFile = new File(['content'], 'extra.pdf', { type: 'application/pdf' })
+    fireEvent.change(input, { target: { files: [newFile] } })
+    expect(screen.getByText(/máximo de 5 arquivos/i)).toBeInTheDocument()
+    expect(mockOnChange).not.toHaveBeenCalled()
+  })
+})
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `npx jest __tests__/components/consultation/pdf-dropzone.test.tsx --verbose`
+Expected: FAIL — module not found.
+
+- [ ] **Step 3: Implement the component**
+
+Create `components/consultation/pdf-dropzone.tsx`:
+
+```tsx
+'use client'
+
+import { useCallback, useRef, useState } from 'react'
+import { FileUp, X } from 'lucide-react'
+
+const MAX_FILES = 5
+const MAX_FILE_SIZE = 10 * 1024 * 1024
+
+type Props = {
+  files: File[]
+  onChange: (files: File[]) => void
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+export function PdfDropzone({ files, onChange }: Props) {
+  const [error, setError] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const validateAndAdd = useCallback(
+    (newFiles: FileList | null) => {
+      if (!newFiles || newFiles.length === 0) return
+      setError(null)
+      const incoming = Array.from(newFiles)
+
+      const nonPdf = incoming.find(
+        (f) => f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')
+      )
+      if (nonPdf) {
+        setError('Apenas arquivos PDF são aceitos')
+        return
+      }
+
+      const tooBig = incoming.find((f) => f.size > MAX_FILE_SIZE)
+      if (tooBig) {
+        setError(`"${tooBig.name}" excede o limite de 10MB`)
+        return
+      }
+
+      if (files.length + incoming.length > MAX_FILES) {
+        setError(`Máximo de ${MAX_FILES} arquivos permitidos`)
+        return
+      }
+
+      onChange([...files, ...incoming])
+    },
+    [files, onChange]
+  )
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      setIsDragging(false)
+      validateAndAdd(e.dataTransfer.files)
+    },
+    [validateAndAdd]
+  )
+
+  const handleRemove = useCallback(
+    (index: number) => {
+      onChange(files.filter((_, i) => i !== index))
+      setError(null)
+    },
+    [files, onChange]
+  )
+
+  return (
+    <div className="space-y-3">
+      <div
+        onDragOver={(e) => {
+          e.preventDefault()
+          setIsDragging(true)
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onClick={() => inputRef.current?.click()}
+        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+          isDragging
+            ? 'border-primary bg-primary/5'
+            : 'border-gray-300 hover:border-gray-400'
+        }`}
+      >
+        <FileUp className="mx-auto h-10 w-10 text-gray-400 mb-3" />
+        <p className="text-sm text-gray-600">
+          Arraste seus arquivos PDF aqui ou{' '}
+          <span className="text-primary font-medium">clique para selecionar</span>
+        </p>
+        <p className="text-xs text-gray-400 mt-1">
+          Máximo {MAX_FILES} arquivos, até 10MB cada
+        </p>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="application/pdf,.pdf"
+          multiple
+          className="hidden"
+          data-testid="file-input"
+          onChange={(e) => {
+            validateAndAdd(e.target.files)
+            e.target.value = ''
+          }}
+        />
+      </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {files.length > 0 && (
+        <ul className="space-y-2">
+          {files.map((file, index) => (
+            <li
+              key={`${file.name}-${index}`}
+              className="flex items-center justify-between rounded-lg border p-3"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex-shrink-0 w-8 h-8 bg-red-50 rounded flex items-center justify-center">
+                  <span className="text-xs font-medium text-red-600">PDF</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{file.name}</p>
+                  <p className="text-xs text-gray-400">{formatFileSize(file.size)}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRemove(index)}
+                aria-label="Remover"
+                className="flex-shrink-0 p-1 text-gray-400 hover:text-destructive"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `npx jest __tests__/components/consultation/pdf-dropzone.test.tsx --verbose`
+Expected: All tests PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add components/consultation/pdf-dropzone.tsx __tests__/components/consultation/pdf-dropzone.test.tsx
+git commit -m "feat: add PdfDropzone component with drag-and-drop and validation"
+```
 
 ---
 
@@ -1223,7 +1521,154 @@ git commit -m "feat: add optional patient context textarea with counter"
 
 ## Task 13: Specialist Picker Component
 
-(Identical to the previous version of this plan — no Mastra-related changes.)
+**Files:**
+- Create: `components/consultation/specialist-picker.tsx`
+- Create: `__tests__/components/consultation/specialist-picker.test.tsx`
+
+- [ ] **Step 1: Write failing tests**
+
+Create `__tests__/components/consultation/specialist-picker.test.tsx`:
+
+```tsx
+import { render, screen, fireEvent } from '@testing-library/react'
+import { SpecialistPicker } from '@/components/consultation/specialist-picker'
+
+const specialists = [
+  { id: '1', name: 'Cardiologista', description: 'Coração', icon: 'heart-pulse' },
+  { id: '2', name: 'Neurologista', description: 'Cérebro', icon: 'brain' },
+]
+
+describe('SpecialistPicker', () => {
+  const mockOnSelect = jest.fn()
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('renders all specialists as cards', () => {
+    render(
+      <SpecialistPicker
+        specialists={specialists}
+        selectedId={null}
+        onSelect={mockOnSelect}
+      />
+    )
+    expect(screen.getByText('Cardiologista')).toBeInTheDocument()
+    expect(screen.getByText('Neurologista')).toBeInTheDocument()
+  })
+
+  it('calls onSelect when a card is clicked', () => {
+    render(
+      <SpecialistPicker
+        specialists={specialists}
+        selectedId={null}
+        onSelect={mockOnSelect}
+      />
+    )
+    fireEvent.click(screen.getByText('Cardiologista'))
+    expect(mockOnSelect).toHaveBeenCalledWith('1')
+  })
+
+  it('highlights the selected card', () => {
+    render(
+      <SpecialistPicker
+        specialists={specialists}
+        selectedId="1"
+        onSelect={mockOnSelect}
+      />
+    )
+    const card = screen.getByText('Cardiologista').closest('button')
+    expect(card?.className).toContain('border-primary')
+  })
+})
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `npx jest __tests__/components/consultation/specialist-picker.test.tsx --verbose`
+Expected: FAIL — module not found.
+
+- [ ] **Step 3: Implement the component**
+
+Create `components/consultation/specialist-picker.tsx`:
+
+```tsx
+'use client'
+
+import {
+  HeartPulse,
+  Ribbon,
+  Brain,
+  Bone,
+  ScanFace,
+  Stethoscope,
+  type LucideIcon,
+} from 'lucide-react'
+
+const iconMap: Record<string, LucideIcon> = {
+  'heart-pulse': HeartPulse,
+  ribbon: Ribbon,
+  brain: Brain,
+  bone: Bone,
+  'scan-face': ScanFace,
+  stethoscope: Stethoscope,
+}
+
+export type Specialist = {
+  id: string
+  name: string
+  description: string
+  icon: string
+}
+
+type Props = {
+  specialists: Specialist[]
+  selectedId: string | null
+  onSelect: (id: string) => void
+}
+
+export function SpecialistPicker({ specialists, selectedId, onSelect }: Props) {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      {specialists.map((specialist) => {
+        const Icon = iconMap[specialist.icon] ?? Stethoscope
+        const isSelected = selectedId === specialist.id
+
+        return (
+          <button
+            key={specialist.id}
+            type="button"
+            onClick={() => onSelect(specialist.id)}
+            className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 text-center transition-colors ${
+              isSelected
+                ? 'border-primary bg-primary/5'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <Icon className={`h-8 w-8 ${isSelected ? 'text-primary' : 'text-gray-400'}`} />
+            <div>
+              <p className="text-sm font-medium">{specialist.name}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{specialist.description}</p>
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `npx jest __tests__/components/consultation/specialist-picker.test.tsx --verbose`
+Expected: All tests PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add components/consultation/specialist-picker.tsx __tests__/components/consultation/specialist-picker.test.tsx
+git commit -m "feat: add SpecialistPicker component with card selection"
+```
 
 ---
 
@@ -1232,24 +1677,177 @@ git commit -m "feat: add optional patient context textarea with counter"
 **Files:**
 - Create: `components/consultation/consultation-form.tsx`
 
-The form now also wires `PatientContextInput` and forwards `patientContext` to `createConsultation`.
+- [ ] **Step 1: Implement the form**
 
-- [ ] **Step 1: Implement**
+Create `components/consultation/consultation-form.tsx`:
 
-Compose `PdfDropzone`, `PatientContextInput`, `SpecialistPicker`. State: `files`, `patientContext`, `selectedSpecialistId`, `isSubmitting`, `error`, `uploadProgress`.
+```tsx
+'use client'
 
-`handleSubmit` flow:
-1. Call `createConsultation({ specialistId, patientContext: patientContext || undefined, files: files.map(f => ({ name: f.name, size: f.size })) })`
-2. On error: surface message
-3. Upload files to signed URLs (PUT, `Content-Type: application/pdf`)
-4. Call `confirmConsultationUpload(consultationId)` — this also triggers Mastra
-5. On error: surface message (failure_reason will already be set by the action)
-6. `router.push(/consultas/${consultationId})`
+import { useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { PdfDropzone } from './pdf-dropzone'
+import { PatientContextInput } from './patient-context-input'
+import { SpecialistPicker, type Specialist } from './specialist-picker'
+import {
+  createConsultation,
+  confirmConsultationUpload,
+} from '@/actions/consultation'
+import { Button } from '@/components/ui/button'
+
+type UploadProgress = {
+  fileName: string
+  status: 'pending' | 'uploading' | 'done' | 'error'
+}
+
+type Props = {
+  specialists: Specialist[]
+}
+
+export function ConsultationForm({ specialists }: Props) {
+  const router = useRouter()
+  const [files, setFiles] = useState<File[]>([])
+  const [patientContext, setPatientContext] = useState('')
+  const [selectedSpecialistId, setSelectedSpecialistId] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([])
+
+  const canSubmit = files.length > 0 && selectedSpecialistId && !isSubmitting
+
+  const handleSubmit = useCallback(async () => {
+    if (!canSubmit) return
+
+    setIsSubmitting(true)
+    setError(null)
+    setUploadProgress([])
+
+    const result = await createConsultation({
+      specialistId: selectedSpecialistId!,
+      patientContext: patientContext.trim() || undefined,
+      files: files.map((f) => ({ name: f.name, size: f.size })),
+    })
+
+    if ('error' in result) {
+      setError(result.error)
+      setIsSubmitting(false)
+      return
+    }
+
+    const progress: UploadProgress[] = files.map((f) => ({
+      fileName: f.name,
+      status: 'pending',
+    }))
+    setUploadProgress([...progress])
+
+    let allUploaded = true
+
+    for (let i = 0; i < files.length; i++) {
+      progress[i].status = 'uploading'
+      setUploadProgress([...progress])
+
+      const uploadUrl = result.uploadUrls.find((u) => u.fileName === files[i].name)
+      if (!uploadUrl) {
+        progress[i].status = 'error'
+        allUploaded = false
+        continue
+      }
+
+      try {
+        const response = await fetch(uploadUrl.url, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/pdf' },
+          body: files[i],
+        })
+        if (!response.ok) throw new Error('Upload failed')
+        progress[i].status = 'done'
+      } catch {
+        progress[i].status = 'error'
+        allUploaded = false
+      }
+
+      setUploadProgress([...progress])
+    }
+
+    if (!allUploaded) {
+      setError('Falha no upload de alguns arquivos. Tente novamente.')
+      setIsSubmitting(false)
+      return
+    }
+
+    const confirmResult = await confirmConsultationUpload(result.consultationId)
+
+    if ('error' in confirmResult) {
+      setError(confirmResult.error)
+      setIsSubmitting(false)
+      return
+    }
+
+    router.push(`/consultas/${result.consultationId}`)
+  }, [canSubmit, selectedSpecialistId, patientContext, files, router])
+
+  return (
+    <div className="max-w-2xl space-y-8">
+      <section>
+        <h2 className="text-lg font-semibold mb-3">1. Envie seus exames</h2>
+        <PdfDropzone files={files} onChange={setFiles} />
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold mb-3">2. Conte sobre seu caso</h2>
+        <PatientContextInput value={patientContext} onChange={setPatientContext} />
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold mb-3">3. Escolha o especialista</h2>
+        <SpecialistPicker
+          specialists={specialists}
+          selectedId={selectedSpecialistId}
+          onSelect={setSelectedSpecialistId}
+        />
+      </section>
+
+      {uploadProgress.length > 0 && (
+        <div className="space-y-1">
+          {uploadProgress.map((p) => (
+            <div key={p.fileName} className="flex items-center gap-2 text-sm">
+              <span
+                className={
+                  p.status === 'done'
+                    ? 'text-success'
+                    : p.status === 'error'
+                      ? 'text-destructive'
+                      : 'text-gray-400'
+                }
+              >
+                {p.status === 'done'
+                  ? '✓'
+                  : p.status === 'error'
+                    ? '✗'
+                    : p.status === 'uploading'
+                      ? '↑'
+                      : '·'}
+              </span>
+              <span>{p.fileName}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      <Button onClick={handleSubmit} disabled={!canSubmit} className="w-full">
+        {isSubmitting ? 'Enviando...' : 'Solicitar Segunda Opinião'}
+      </Button>
+    </div>
+  )
+}
+```
 
 - [ ] **Step 2: Verify build**
 
 Run: `npx next build`
-Expected: No errors.
+Expected: No build errors.
 
 - [ ] **Step 3: Commit**
 
@@ -1262,7 +1860,44 @@ git commit -m "feat: add ConsultationForm with patient context and Mastra-aware 
 
 ## Task 15: New Consultation Page
 
-(Identical to previous version — `/consultas/nova` server component fetching specialists and rendering `<ConsultationForm specialists={...} />`.)
+**Files:**
+- Create: `app/(protected)/consultas/nova/page.tsx`
+
+- [ ] **Step 1: Create the page**
+
+```tsx
+import { createClient } from '@/lib/supabase/server'
+import { ConsultationForm } from '@/components/consultation/consultation-form'
+
+export default async function NovaConsultaPage() {
+  const supabase = await createClient()
+
+  const { data: specialists } = await supabase
+    .from('specialists')
+    .select('id, name, description, icon')
+    .eq('active', true)
+    .order('name')
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-6">Nova Consulta</h1>
+      <ConsultationForm specialists={specialists ?? []} />
+    </div>
+  )
+}
+```
+
+- [ ] **Step 2: Verify the page loads**
+
+Run: `npx next dev` and navigate to `/consultas/nova` (logged in)
+Expected: Page renders with dropzone, context textarea, and specialist cards.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add app/\(protected\)/consultas/nova/page.tsx
+git commit -m "feat: add new consultation page at /consultas/nova"
+```
 
 ---
 
@@ -1276,28 +1911,206 @@ git commit -m "feat: add ConsultationForm with patient context and Mastra-aware 
 
 - [ ] **Step 1: Implement `ConsultationResult`**
 
-Renders all sections of `ConsultationResult` schema:
-- **Resumo:** `summary` (markdown — start with simple `whitespace-pre-wrap`, upgrade to a markdown component later)
-- **Achados:** map `findings` to cards with severity badge (info=cinza, attention=amarelo, urgent=vermelho)
-- **Análise:** `assessment` (markdown)
-- **Recomendações:** `<ul>` of `recommendations`
-- **Perguntas para o médico:** `<ul>` of `questionsForDoctor`
-- **Sinais de alerta:** `<ul>` red of `redFlags` — hide section entirely if empty
-- **Confiança:** `confidence` badge (low=cinza, medium=azul, high=verde)
-- **Aviso:** `disclaimer` em `text-xs text-gray-500`
+Create `components/consultation/consultation-result.tsx`:
+
+```tsx
+import type { ConsultationResult as Result } from '@/mastra/schemas/consultation-result'
+
+const severityStyle: Record<Result['findings'][number]['severity'], string> = {
+  info: 'bg-gray-100 text-gray-700',
+  attention: 'bg-yellow-100 text-yellow-800',
+  urgent: 'bg-red-100 text-red-800',
+}
+
+const severityLabel: Record<Result['findings'][number]['severity'], string> = {
+  info: 'Informativo',
+  attention: 'Atenção',
+  urgent: 'Urgente',
+}
+
+const confidenceStyle: Record<Result['confidence'], string> = {
+  low: 'bg-gray-100 text-gray-700',
+  medium: 'bg-blue-100 text-blue-800',
+  high: 'bg-green-100 text-green-800',
+}
+
+const confidenceLabel: Record<Result['confidence'], string> = {
+  low: 'Baixa',
+  medium: 'Média',
+  high: 'Alta',
+}
+
+export function ConsultationResult({ result }: { result: Result }) {
+  return (
+    <div className="space-y-6">
+      <section className="rounded-xl border p-4">
+        <h2 className="text-sm font-medium text-gray-500 mb-2">Resumo</h2>
+        <p className="whitespace-pre-wrap text-sm">{result.summary}</p>
+      </section>
+
+      {result.findings.length > 0 && (
+        <section className="rounded-xl border p-4">
+          <h2 className="text-sm font-medium text-gray-500 mb-3">Achados</h2>
+          <ul className="space-y-3">
+            {result.findings.map((f, i) => (
+              <li key={i} className="rounded-lg border p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-medium">{f.title}</p>
+                  <span
+                    className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${severityStyle[f.severity]}`}
+                  >
+                    {severityLabel[f.severity]}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{f.detail}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="rounded-xl border p-4">
+        <h2 className="text-sm font-medium text-gray-500 mb-2">Análise</h2>
+        <p className="whitespace-pre-wrap text-sm">{result.assessment}</p>
+      </section>
+
+      {result.recommendations.length > 0 && (
+        <section className="rounded-xl border p-4">
+          <h2 className="text-sm font-medium text-gray-500 mb-3">Recomendações</h2>
+          <ul className="list-disc list-inside space-y-1 text-sm">
+            {result.recommendations.map((r, i) => <li key={i}>{r}</li>)}
+          </ul>
+        </section>
+      )}
+
+      {result.questionsForDoctor.length > 0 && (
+        <section className="rounded-xl border p-4">
+          <h2 className="text-sm font-medium text-gray-500 mb-3">Perguntas para o médico</h2>
+          <ul className="list-disc list-inside space-y-1 text-sm">
+            {result.questionsForDoctor.map((q, i) => <li key={i}>{q}</li>)}
+          </ul>
+        </section>
+      )}
+
+      {result.redFlags.length > 0 && (
+        <section className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <h2 className="text-sm font-medium text-red-800 mb-3">Sinais de alerta</h2>
+          <ul className="list-disc list-inside space-y-1 text-sm text-red-900">
+            {result.redFlags.map((r, i) => <li key={i}>{r}</li>)}
+          </ul>
+        </section>
+      )}
+
+      <section className="flex items-center gap-2">
+        <span className="text-sm text-gray-500">Confiança da análise:</span>
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${confidenceStyle[result.confidence]}`}>
+          {confidenceLabel[result.confidence]}
+        </span>
+      </section>
+
+      <p className="text-xs text-gray-500">{result.disclaimer}</p>
+    </div>
+  )
+}
+```
 
 - [ ] **Step 2: Implement `ConsultationFailed`**
 
-Card vermelho com `failure_reason` + botão "Tentar novamente" que invoca `retryConsultation` via Server Action e gerencia `isPending`.
+Create `components/consultation/consultation-failed.tsx`:
+
+```tsx
+'use client'
+
+import { useTransition } from 'react'
+import { AlertTriangle, RefreshCcw } from 'lucide-react'
+import { retryConsultation } from '@/actions/consultation'
+import { Button } from '@/components/ui/button'
+
+type Props = {
+  consultationId: string
+  failureReason: string | null
+}
+
+export function ConsultationFailed({ consultationId, failureReason }: Props) {
+  const [isPending, startTransition] = useTransition()
+
+  const handleRetry = () => {
+    startTransition(async () => {
+      await retryConsultation(consultationId)
+    })
+  }
+
+  return (
+    <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-3">
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="h-5 w-5 text-red-700 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="font-medium text-red-900">Não conseguimos concluir a análise</p>
+          <p className="text-sm text-red-800 mt-1">
+            {failureReason ?? 'Algo deu errado durante o processamento.'}
+          </p>
+        </div>
+      </div>
+      <Button onClick={handleRetry} disabled={isPending} variant="outline">
+        <RefreshCcw className="h-4 w-4 mr-2" />
+        {isPending ? 'Reenviando...' : 'Tentar novamente'}
+      </Button>
+    </div>
+  )
+}
+```
 
 - [ ] **Step 3: Implement `ConsultationStatusLive`** (Client Component)
+
+Create `components/consultation/consultation-status-live.tsx`:
 
 ```tsx
 'use client'
 
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
-// types omitted for brevity
+import { FileText, Loader2 } from 'lucide-react'
+import {
+  HeartPulse, Ribbon, Brain, Bone, ScanFace, Stethoscope, type LucideIcon,
+} from 'lucide-react'
+import { ConsultationResult } from './consultation-result'
+import { ConsultationFailed } from './consultation-failed'
+import type { ConsultationResult as Result } from '@/mastra/schemas/consultation-result'
+
+const iconMap: Record<string, LucideIcon> = {
+  'heart-pulse': HeartPulse,
+  ribbon: Ribbon,
+  brain: Brain,
+  bone: Bone,
+  'scan-face': ScanFace,
+  stethoscope: Stethoscope,
+}
+
+const statusConfig: Record<string, { label: string; color: string }> = {
+  pending: { label: 'Aguardando upload', color: 'bg-gray-100 text-gray-700' },
+  processing: { label: 'Analisando seus exames…', color: 'bg-blue-100 text-blue-800' },
+  completed: { label: 'Concluída', color: 'bg-green-100 text-green-800' },
+  failed: { label: 'Falhou', color: 'bg-red-100 text-red-800' },
+}
+
+type ConsultationFile = { id: string; file_name: string; file_size: number }
+
+export type ConsultationRow = {
+  id: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  result: Result | null
+  failure_reason: string | null
+  patient_context: string | null
+  created_at: string
+  specialist: { name: string; icon: string } | { name: string; icon: string }[]
+  files: ConsultationFile[]
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 
 export function ConsultationStatusLive({ initial }: { initial: ConsultationRow }) {
   const [consultation, setConsultation] = useState(initial)
@@ -1318,7 +2131,7 @@ export function ConsultationStatusLive({ initial }: { initial: ConsultationRow }
           filter: `id=eq.${initial.id}`,
         },
         (payload) => {
-          setConsultation((prev) => ({ ...prev, ...payload.new }))
+          setConsultation((prev) => ({ ...prev, ...payload.new as Partial<ConsultationRow> }))
         }
       )
       .subscribe()
@@ -1328,8 +2141,74 @@ export function ConsultationStatusLive({ initial }: { initial: ConsultationRow }
     }
   }, [initial.id])
 
-  // render branches by consultation.status: pending / processing / completed / failed
-  // ...
+  const specialist = Array.isArray(consultation.specialist)
+    ? consultation.specialist[0]
+    : consultation.specialist
+  const Icon = iconMap[specialist?.icon ?? ''] ?? Stethoscope
+  const status = statusConfig[consultation.status] ?? statusConfig.pending
+  const date = new Date(consultation.created_at).toLocaleDateString('pt-BR', {
+    day: '2-digit', month: 'long', year: 'numeric',
+  })
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <div className="flex items-center gap-3">
+        <h1 className="text-2xl font-bold">Consulta</h1>
+        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${status.color}`}>
+          {status.label}
+        </span>
+      </div>
+      <p className="text-sm text-gray-500">{date}</p>
+
+      <section className="rounded-xl border p-4">
+        <h2 className="text-sm font-medium text-gray-500 mb-2">Especialista</h2>
+        <div className="flex items-center gap-3">
+          <Icon className="h-6 w-6 text-primary" />
+          <span className="font-medium">{specialist?.name}</span>
+        </div>
+      </section>
+
+      <section className="rounded-xl border p-4">
+        <h2 className="text-sm font-medium text-gray-500 mb-2">
+          Arquivos enviados ({consultation.files.length})
+        </h2>
+        <ul className="space-y-2">
+          {consultation.files.map((file) => (
+            <li key={file.id} className="flex items-center gap-3">
+              <FileText className="h-4 w-4 text-gray-400" />
+              <span className="text-sm">{file.file_name}</span>
+              <span className="text-xs text-gray-400">{formatFileSize(file.file_size)}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {consultation.patient_context && (
+        <section className="rounded-xl border p-4">
+          <h2 className="text-sm font-medium text-gray-500 mb-2">Contexto compartilhado</h2>
+          <p className="text-sm whitespace-pre-wrap">{consultation.patient_context}</p>
+        </section>
+      )}
+
+      {consultation.status === 'processing' && (
+        <div className="flex items-center gap-3 rounded-xl border bg-blue-50 p-4 text-sm text-blue-900">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Analisando seus exames…
+        </div>
+      )}
+
+      {consultation.status === 'completed' && consultation.result && (
+        <ConsultationResult result={consultation.result} />
+      )}
+
+      {consultation.status === 'failed' && (
+        <ConsultationFailed
+          consultationId={consultation.id}
+          failureReason={consultation.failure_reason}
+        />
+      )}
+    </div>
+  )
 }
 ```
 
@@ -1413,9 +2292,128 @@ git commit -m "feat: add consultation status page with live updates"
 - Create: `components/dashboard/consultation-list.tsx`
 - Modify: `app/(protected)/dashboard/page.tsx`
 
-Largely the same as the previous version of this plan, **plus** add `'failed'` to `statusConfig` (badge vermelho, "Falhou").
+- [ ] **Step 1: Create the `ConsultationList` component**
 
-- [ ] Steps as before. Commit:
+```tsx
+import Link from 'next/link'
+import {
+  HeartPulse, Ribbon, Brain, Bone, ScanFace, Stethoscope, ClipboardPlus,
+  type LucideIcon,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+
+const iconMap: Record<string, LucideIcon> = {
+  'heart-pulse': HeartPulse,
+  ribbon: Ribbon,
+  brain: Brain,
+  bone: Bone,
+  'scan-face': ScanFace,
+  stethoscope: Stethoscope,
+}
+
+const statusConfig: Record<string, { label: string; color: string }> = {
+  pending: { label: 'Aguardando upload', color: 'bg-gray-100 text-gray-700' },
+  processing: { label: 'Em processamento', color: 'bg-blue-100 text-blue-800' },
+  completed: { label: 'Concluída', color: 'bg-green-100 text-green-800' },
+  failed: { label: 'Falhou', color: 'bg-red-100 text-red-800' },
+}
+
+type Specialist = { name: string; icon: string }
+
+type Consultation = {
+  id: string
+  status: string
+  created_at: string
+  specialist: Specialist | Specialist[]
+}
+
+type Props = { consultations: Consultation[] }
+
+export function ConsultationList({ consultations }: Props) {
+  if (consultations.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <ClipboardPlus className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+        <p className="text-gray-500 mb-4">Você ainda não tem consultas</p>
+        <Button asChild>
+          <Link href="/consultas/nova">Criar sua primeira consulta</Link>
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {consultations.map((consultation) => {
+        const specialist = Array.isArray(consultation.specialist)
+          ? consultation.specialist[0]
+          : consultation.specialist
+        const Icon = iconMap[specialist?.icon ?? ''] ?? Stethoscope
+        const status = statusConfig[consultation.status] ?? statusConfig.pending
+        const date = new Date(consultation.created_at).toLocaleDateString('pt-BR')
+
+        return (
+          <Link
+            key={consultation.id}
+            href={`/consultas/${consultation.id}`}
+            className="flex items-center gap-4 rounded-xl border p-4 hover:bg-gray-50 transition-colors"
+          >
+            <Icon className="h-6 w-6 text-primary flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium">{specialist?.name}</p>
+              <p className="text-xs text-gray-400">{date}</p>
+            </div>
+            <span
+              className={`text-xs font-medium px-2.5 py-1 rounded-full flex-shrink-0 ${status.color}`}
+            >
+              {status.label}
+            </span>
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
+```
+
+- [ ] **Step 2: Update the dashboard page**
+
+Replace `app/(protected)/dashboard/page.tsx`:
+
+```tsx
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
+import { ConsultationList } from '@/components/dashboard/consultation-list'
+import { Button } from '@/components/ui/button'
+
+export default async function DashboardPage() {
+  const supabase = await createClient()
+
+  const { data: consultations } = await supabase
+    .from('consultations')
+    .select('id, status, created_at, specialist:specialists(name, icon)')
+    .order('created_at', { ascending: false })
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Minhas Consultas</h1>
+        <Button asChild>
+          <Link href="/consultas/nova">Nova Consulta</Link>
+        </Button>
+      </div>
+      <ConsultationList consultations={consultations ?? []} />
+    </div>
+  )
+}
+```
+
+- [ ] **Step 3: Verify**
+
+Run: `npx next dev` and navigate to `/dashboard`
+Expected: Empty state with "Criar sua primeira consulta" button or list of consultations.
+
+- [ ] **Step 4: Commit**
 
 ```bash
 git add components/dashboard/consultation-list.tsx app/\(protected\)/dashboard/page.tsx
@@ -1443,7 +2441,9 @@ git commit -m "feat: add consultation list with failed status to dashboard"
 
 `curl -i ${MASTRA_URL}/api/workflows/consultationWorkflow/start-async -X POST` without bearer → expect `401`.
 
-- [ ] **Step 4: Document the runbook in `docs/runbooks/mastra.md`** (out of scope to write here; placeholder note)
+- [ ] **Step 4: Verify Mastra → Supabase write path**
+
+Trigger a real workflow against staging Supabase and confirm `consultations.status` updates from `processing` → `completed` (or `failed`) via service-role.
 
 ---
 
