@@ -1,6 +1,8 @@
 # Consultation Flow Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+>
+> **IMPORTANT:** Tasks 1–19 only write code and `git commit`. **Do NOT run `npm`, `npx`, `next`, `jest`, `supabase`, or `mastra` commands during these tasks.** All execution (deps install, tests, builds, dev servers, migrations, smoke test) is consolidated into **Task 20 (Execução & Verificação)**, which the project owner runs in a separate session. Subagent execution stops after Task 19.
 
 **Goal:** Build the complete user experience for creating a medical second opinion — PDF upload, optional patient context, specialist selection, processing by a Mastra workflow with Claude Sonnet 4.6, real-time status tracking, structured result, and retry on failure.
 
@@ -36,6 +38,7 @@
 | `components/dashboard/consultation-list.tsx` | Lists user consultations with status badges (incl. `failed`) |
 | `app/(protected)/consultas/nova/page.tsx` | New consultation page |
 | `app/(protected)/consultas/[id]/page.tsx` | Consultation status page |
+| `.vercelignore` | Ignore `mastra/` so Vercel doesn't ship it |
 
 ### New files (Mastra side — `mastra/` directory, deployed to Mastra Cloud)
 
@@ -66,8 +69,7 @@
 | `lib/auth/route-access.ts:2` | Add `/consultas` to `PROTECTED_PREFIXES` |
 | `app/(protected)/layout.tsx` | Update branding, add nav link, translate logout |
 | `app/(protected)/dashboard/page.tsx` | Replace placeholder with `ConsultationList` |
-| `package.json` | Add Mastra + Anthropic deps; add `mastra` script for local dev |
-| `.vercelignore` | Add `mastra/` so Vercel doesn't ship it |
+| `package.json` / `package-lock.json` | Add Mastra + Anthropic deps (during Task 20) |
 
 ### Test files
 
