@@ -104,8 +104,11 @@ create policy "Admins can read all consultations"
   using (public.is_admin());
 
 -- View for "consultas por especialista" breakdown
--- Inherits RLS from base tables: admin sees all rows via new policy above
-create view public.consultation_counts_by_specialist as
+-- security_invoker = true makes the view run with the *invoker's* privileges,
+-- so RLS on base tables is enforced per caller. Without this flag, the view
+-- runs as its owner and bypasses RLS — all rows would leak to non-admins.
+create view public.consultation_counts_by_specialist
+  with (security_invoker = true) as
   select s.id, s.name, s.icon, count(c.id) as count
   from public.specialists s
   left join public.consultations c on c.specialist_id = s.id
