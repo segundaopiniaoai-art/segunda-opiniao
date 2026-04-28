@@ -1,8 +1,7 @@
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 
-export default function globalSetup() {
-  const envPath = resolve(process.cwd(), '.env.local')
+function loadEnvFile(envPath: string) {
   try {
     const content = readFileSync(envPath, 'utf-8')
     for (const line of content.split('\n')) {
@@ -11,12 +10,21 @@ export default function globalSetup() {
       const eqIdx = trimmed.indexOf('=')
       if (eqIdx === -1) continue
       const key = trimmed.slice(0, eqIdx).trim()
-      const value = trimmed.slice(eqIdx + 1).trim()
+      // Strip surrounding single or double quotes if any tool emitted them.
+      const value = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '')
       if (!process.env[key]) {
         process.env[key] = value
       }
     }
   } catch {
-    // .env.local not found — skip
+    // file not found — skip
   }
+}
+
+export default function globalSetup() {
+  const cwd = process.cwd()
+  // .env.test.local takes priority (local Supabase for integration tests),
+  // falling back to .env.local (remote/production credentials).
+  loadEnvFile(resolve(cwd, '.env.test.local'))
+  loadEnvFile(resolve(cwd, '.env.local'))
 }

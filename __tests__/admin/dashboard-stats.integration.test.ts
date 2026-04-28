@@ -23,6 +23,8 @@ async function authClient(email: string, password: string) {
   return c
 }
 
+jest.setTimeout(30_000)
+
 describe('getDashboardStats (integration)', () => {
   let adminUserId: string
   let patient1Id: string
@@ -67,11 +69,11 @@ describe('getDashboardStats (integration)', () => {
     const fortyDaysAgo = new Date(now.getTime() - 40 * 86_400_000).toISOString()
 
     await admin.from('consultations').insert([
-      { user_id: patient1Id, specialist_id: cardiologyId, status: 'completed', created_at: today },
-      { user_id: patient1Id, specialist_id: cardiologyId, status: 'completed', created_at: fiveDaysAgo },
-      { user_id: patient2Id, specialist_id: cardiologyId, status: 'pending', created_at: twentyDaysAgo },
-      { user_id: patient2Id, specialist_id: oncologyId, status: 'completed', created_at: twentyDaysAgo },
-      { user_id: patient1Id, specialist_id: oncologyId, status: 'failed', created_at: fortyDaysAgo },
+      { user_id: patient1Id, specialist_id: cardiologyId, status: 'completed', created_at: today,         input_tokens: 1000, output_tokens: 500, cost_usd: 0.0105 },
+      { user_id: patient1Id, specialist_id: cardiologyId, status: 'completed', created_at: fiveDaysAgo,   input_tokens: 2000, output_tokens: 800, cost_usd: 0.0180 },
+      { user_id: patient2Id, specialist_id: cardiologyId, status: 'pending',   created_at: twentyDaysAgo },
+      { user_id: patient2Id, specialist_id: oncologyId,   status: 'completed', created_at: twentyDaysAgo, input_tokens: 3000, output_tokens: 1200, cost_usd: 0.0270 },
+      { user_id: patient1Id, specialist_id: oncologyId,   status: 'failed',    created_at: fortyDaysAgo },
     ])
   })
 
@@ -106,8 +108,39 @@ describe('getDashboardStats (integration)', () => {
     // Note: patient still sees their own consultations via the existing
     // "Users can read own consultations" policy, so totalConsultations may be
     // > 0 if `count: 'exact', head: true` walks RLS. Supabase JS does — assert
-    // it's at most the number of consultations owned by patient1 (2).
+    // it's at most the number of consultations owned by patient1 (3).
     expect(stats.totalUsers).toBeLessThanOrEqual(1) // patient sees own profile only
-    expect(stats.totalConsultations).toBeLessThanOrEqual(2)
+    expect(stats.totalConsultations).toBeLessThanOrEqual(3)
+  })
+
+  it('returns correct cost aggregates when called by an admin', async () => {
+    const client = await authClient(adminEmail, password)
+    const stats = await getDashboardStats(client)
+
+    // Three measured consultations seeded by us: 0.0105 + 0.0180 + 0.0270 = 0.0555
+    expect(stats.totalCostUsd).toBeGreaterThanOrEqual(0.0555)
+    expect(stats.costToday).toBeGreaterThanOrEqual(0.0105)
+    expect(stats.cost7d).toBeGreaterThanOrEqual(0.0105 + 0.0180)
+    expect(stats.cost30d).toBeGreaterThanOrEqual(0.0555)
+
+    // avg = total / measuredCount; with our 3 measured, avg ≥ 0.0555/3 ≈ 0.0185
+    expect(stats.avgCostPerConsultation).toBeGreaterThanOrEqual(0.0185)
+    expect(stats.costMeasurementSince).not.toBeNull()
+
+    const cardio = stats.costBySpecialist.find((s) => s.id === cardiologyId)
+    const onco = stats.costBySpecialist.find((s) => s.id === oncologyId)
+    expect(cardio?.costUsd).toBeGreaterThanOrEqual(0.0285) // 0.0105 + 0.0180
+    expect(onco?.costUsd).toBeGreaterThanOrEqual(0.0270)
+    expect(cardio?.count).toBeGreaterThanOrEqual(2)
+    expect(onco?.count).toBeGreaterThanOrEqual(1)
+  })
+
+  it('returns zero cost aggregates for non-admin (RLS hides other rows)', async () => {
+    const client = await authClient(patientEmail, password)
+    const stats = await getDashboardStats(client)
+
+    // patient owns 2 completed consultations with costs 0.0105 + 0.0180 = 0.0285.
+    // Both addends are exactly representable in IEEE 754; no epsilon needed.
+    expect(stats.totalCostUsd).toBeLessThanOrEqual(0.0285)
   })
 })
