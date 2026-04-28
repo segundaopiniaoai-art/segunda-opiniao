@@ -47,6 +47,7 @@
 **Notas globais:**
 - Reutilizamos o helper SQL `is_admin()` que já existe (migration `20260428000000_admin_read_policies.sql`) em vez de inlinear `select 1 from profiles where role='admin'`. A spec usa o inline; o plano prefere `is_admin()` para coerência com o resto do projeto.
 - O Next.js side usa o cliente autenticado por usuário (`@/lib/supabase/server`); RLS gera o gate de admin. Service role só é usado pelo Mastra.
+- A spec menciona exibir o autor (email) na UI. Verificado: `profiles` não tem coluna `email` (vive em `auth.users`). Para evitar uma migration extra, **v1 não exibe autor** — `created_by` é gravado no banco normalmente, mas a UI mostra só data/hora. Exibição do autor fica como follow-up (junto com adicionar `profiles.email` ou view).
 
 ---
 
@@ -670,7 +671,7 @@ function makeBuilder(): Builder {
 }
 
 describe('listSpecialistsWithCurrentVersion', () => {
-  it('retorna nome, agent_key, versão atual e autor', async () => {
+  it('retorna nome, agent_key, versão atual e timestamp', async () => {
     const b = makeBuilder()
     b.order.mockResolvedValue({
       data: [
@@ -679,7 +680,6 @@ describe('listSpecialistsWithCurrentVersion', () => {
           current_prompt_version: {
             version_number: 3,
             created_at: '2026-04-25T10:00:00Z',
-            created_by_profile: { email: 'bruna@example.com' },
           },
         },
       ],
@@ -695,14 +695,13 @@ describe('listSpecialistsWithCurrentVersion', () => {
         id: 's1', name: 'Cardiologista', agentKey: 'cardiology',
         currentVersionNumber: 3,
         currentVersionCreatedAt: '2026-04-25T10:00:00Z',
-        currentVersionCreatedBy: 'bruna@example.com',
       },
     ])
   })
 })
 
 describe('getSpecialistEditorData', () => {
-  it('retorna especialista + lista de versões com email do autor', async () => {
+  it('retorna especialista + lista de versões ordenada desc', async () => {
     const sBuilder = makeBuilder()
     sBuilder.single.mockResolvedValue({
       data: { id: 's1', name: 'Cardiologista', agent_key: 'cardiology', current_prompt_version_id: 'v3' },
@@ -711,9 +710,9 @@ describe('getSpecialistEditorData', () => {
     const vBuilder = makeBuilder()
     vBuilder.order.mockResolvedValue({
       data: [
-        { id: 'v3', version_number: 3, content: 'c3', created_at: 't3', created_by_profile: { email: 'a@x.com' } },
-        { id: 'v2', version_number: 2, content: 'c2', created_at: 't2', created_by_profile: { email: 'a@x.com' } },
-        { id: 'v1', version_number: 1, content: 'c1', created_at: 't1', created_by_profile: null },
+        { id: 'v3', version_number: 3, content: 'c3', created_at: 't3' },
+        { id: 'v2', version_number: 2, content: 'c2', created_at: 't2' },
+        { id: 'v1', version_number: 1, content: 'c1', created_at: 't1' },
       ],
       error: null,
     })
@@ -730,9 +729,8 @@ describe('getSpecialistEditorData', () => {
     expect(result.specialist.currentVersionId).toBe('v3')
     expect(result.versions).toHaveLength(3)
     expect(result.versions[0]).toEqual({
-      id: 'v3', versionNumber: 3, content: 'c3', createdAt: 't3', createdByEmail: 'a@x.com',
+      id: 'v3', versionNumber: 3, content: 'c3', createdAt: 't3',
     })
-    expect(result.versions[2].createdByEmail).toBeNull()
   })
 })
 ```
@@ -755,7 +753,6 @@ export type SpecialistRow = {
   agentKey: string
   currentVersionNumber: number | null
   currentVersionCreatedAt: string | null
-  currentVersionCreatedBy: string | null
 }
 
 export type EditorVersion = {
@@ -763,7 +760,6 @@ export type EditorVersion = {
   versionNumber: number
   content: string
   createdAt: string
-  createdByEmail: string | null
 }
 
 export type EditorData = {
@@ -780,8 +776,7 @@ export async function listSpecialistsWithCurrentVersion(
       id, name, agent_key,
       current_prompt_version:specialist_prompt_versions!current_prompt_version_id(
         version_number,
-        created_at,
-        created_by_profile:profiles!created_by(email)
+        created_at
       )
     `)
     .order('name', { ascending: true })
@@ -794,7 +789,6 @@ export async function listSpecialistsWithCurrentVersion(
     agentKey: row.agent_key,
     currentVersionNumber: row.current_prompt_version?.version_number ?? null,
     currentVersionCreatedAt: row.current_prompt_version?.created_at ?? null,
-    currentVersionCreatedBy: row.current_prompt_version?.created_by_profile?.email ?? null,
   }))
 }
 
@@ -811,10 +805,7 @@ export async function getSpecialistEditorData(
 
   const { data: versions, error: vErr } = await supabase
     .from('specialist_prompt_versions')
-    .select(`
-      id, version_number, content, created_at,
-      created_by_profile:profiles!created_by(email)
-    `)
+    .select('id, version_number, content, created_at')
     .eq('specialist_id', specialistId)
     .order('version_number', { ascending: false })
   if (vErr) throw vErr
@@ -831,7 +822,6 @@ export async function getSpecialistEditorData(
       versionNumber: v.version_number,
       content: v.content,
       createdAt: v.created_at,
-      createdByEmail: v.created_by_profile?.email ?? null,
     })),
   }
 }
@@ -841,8 +831,6 @@ export async function getSpecialistEditorData(
 
 Run: `npm test -- specialist-prompts`
 Expected: PASS.
-
-⚠️ Nota: o `select` faz join via FK `created_by` apontando para `profiles(email)`. Isso depende de `profiles` ter coluna `email`. Se não tiver, ler email via `auth.users` exigiria service role — fora de escopo. Verifique antes do Task 12 (integration test) se `profiles.email` existe; se não, ajuste o helper para retornar `created_by` (uuid) e omita o nome de autor da UI.
 
 - [ ] **Step 5: Commit**
 
@@ -1053,7 +1041,6 @@ export default async function AdminEspecialistasPage() {
               <th className="text-left px-4 py-3 font-medium">Especialista</th>
               <th className="text-left px-4 py-3 font-medium">Versão atual</th>
               <th className="text-left px-4 py-3 font-medium">Atualizado em</th>
-              <th className="text-left px-4 py-3 font-medium">Autor</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
@@ -1066,9 +1053,6 @@ export default async function AdminEspecialistasPage() {
                   {row.currentVersionCreatedAt
                     ? new Date(row.currentVersionCreatedAt).toLocaleDateString('pt-BR')
                     : '—'}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {row.currentVersionCreatedBy ?? '—'}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <Link
@@ -1252,7 +1236,7 @@ export function PromptEditor(props: Props) {
         <h2 className="font-heading text-lg font-semibold">Histórico</h2>
         <ul className="rounded-lg border border-border divide-y divide-border">
           {props.versions.map((v) => {
-            const isCurrent = v.id !== undefined && v.versionNumber === props.currentVersionNumber
+            const isCurrent = v.versionNumber === props.currentVersionNumber
             const isOpen = expanded === v.id
             return (
               <li key={v.id} className="p-3">
@@ -1266,7 +1250,6 @@ export function PromptEditor(props: Props) {
                     {isCurrent && <span className="ml-2 text-xs uppercase text-primary">atual</span>}
                     <span className="ml-2 text-sm text-muted-foreground">
                       {new Date(v.createdAt).toLocaleString('pt-BR')}
-                      {v.createdByEmail && ` · ${v.createdByEmail}`}
                     </span>
                   </button>
                   {!isCurrent && (
