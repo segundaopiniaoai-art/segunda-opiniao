@@ -4,6 +4,8 @@ import { getDashboardStats } from '@/lib/admin/dashboard-stats'
 import { DashboardSection } from '@/components/admin/dashboard-section'
 import { MetricCard } from '@/components/admin/metric-card'
 import { BreakdownCard } from '@/components/admin/breakdown-card'
+import { CostBreakdownCard } from '@/components/admin/cost-breakdown-card'
+import { formatCostUsd } from '@/lib/pricing'
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient()
@@ -20,6 +22,12 @@ export default async function AdminDashboardPage() {
   if (profile?.role !== 'admin') redirect('/dashboard')
 
   const stats = await getDashboardStats(supabase)
+
+  const sinceLabel = stats.costMeasurementSince
+    ? new Date(stats.costMeasurementSince).toLocaleDateString('pt-BR', {
+        day: '2-digit', month: 'long', year: 'numeric',
+      })
+    : null
 
   return (
     <div className="space-y-10">
@@ -43,22 +51,34 @@ export default async function AdminDashboardPage() {
         />
       </DashboardSection>
 
-      <DashboardSection title="Custos" comingSoon>
-        <MetricCard label="Total de custo" placeholder />
-        <MetricCard label="Hoje" placeholder />
-        <MetricCard label="Últimos 7 dias" placeholder />
-        <MetricCard label="Últimos 30 dias" placeholder />
-        <BreakdownCard
-          label="Por especialista"
-          placeholder
-          className="md:col-span-2 lg:col-span-3"
-        />
-        <BreakdownCard
-          label="Top 10 por usuário"
-          placeholder
-          className="md:col-span-2 lg:col-span-3"
-        />
-      </DashboardSection>
+      <section>
+        <header className="flex items-center gap-2 mb-4">
+          <h2 className="font-heading text-lg font-semibold">Custos</h2>
+        </header>
+        {sinceLabel === null ? (
+          <p className="text-sm text-muted-foreground italic">
+            Nenhuma consulta medida ainda.
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <MetricCard label="Total de custo" formattedValue={formatCostUsd(stats.totalCostUsd)} />
+              <MetricCard label="Hoje" formattedValue={formatCostUsd(stats.costToday)} />
+              <MetricCard label="Últimos 7 dias" formattedValue={formatCostUsd(stats.cost7d)} />
+              <MetricCard label="Últimos 30 dias" formattedValue={formatCostUsd(stats.cost30d)} />
+              <MetricCard label="Médio por consulta" formattedValue={formatCostUsd(stats.avgCostPerConsultation)} />
+              <CostBreakdownCard
+                label="Por especialista"
+                items={stats.costBySpecialist}
+                className="md:col-span-2 lg:col-span-3"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Medindo custos desde {sinceLabel}.
+            </p>
+          </>
+        )}
+      </section>
     </div>
   )
 }
