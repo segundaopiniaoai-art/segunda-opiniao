@@ -14,11 +14,11 @@ const config: Config = {
     '^@/(.*)$': '<rootDir>/$1',
   },
   testMatch: isIntegration
-    ? ['**/__tests__/auth.integration.test.ts']
+    ? ['**/__tests__/**/*.integration.test.ts']
     : ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx'],
   testPathIgnorePatterns: isIntegration
     ? ['/node_modules/']
-    : ['/node_modules/', '<rootDir>/__tests__/auth.integration.test.ts'],
+    : ['/node_modules/', '\\.integration\\.test\\.ts$'],
 }
 
 const baseConfig = createJestConfig(config)
