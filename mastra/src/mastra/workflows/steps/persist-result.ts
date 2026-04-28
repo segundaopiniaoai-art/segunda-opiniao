@@ -14,6 +14,7 @@ export const persistResult = createStep({
       outputTokens: z.number().int().nonnegative(),
     }),
     costUsd: z.number().nonnegative(),
+    promptVersionId: z.string().uuid(),
   }),
   outputSchema: z.object({ status: z.enum(['completed', 'failed']) }),
   execute: async ({ inputData }) => {
@@ -28,6 +29,7 @@ export const persistResult = createStep({
           input_tokens: inputData.usage.inputTokens,
           output_tokens: inputData.usage.outputTokens,
           cost_usd: inputData.costUsd,
+          prompt_version_id: inputData.promptVersionId,
         })
         .eq('id', inputData.consultationId)
       if (error) throw error

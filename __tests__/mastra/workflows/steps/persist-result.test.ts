@@ -26,11 +26,14 @@ const minimalResult = {
   disclaimer: 'aviso',
 }
 
+const STUB_PROMPT_VERSION_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+
 const baseInput = {
   consultationId: 'consultation-42',
   result: minimalResult,
   usage: { inputTokens: 12_430, outputTokens: 1_892 },
   costUsd: 0.06567,
+  promptVersionId: STUB_PROMPT_VERSION_ID,
 }
 
 const execute = (input: Record<string, unknown>) =>
@@ -54,6 +57,7 @@ describe('persistResult step', () => {
       input_tokens: 12_430,
       output_tokens: 1_892,
       cost_usd: 0.06567,
+      prompt_version_id: STUB_PROMPT_VERSION_ID,
     })
     expect(mockEq).toHaveBeenCalledWith('id', 'consultation-42')
     expect(out).toEqual({ status: 'completed' })
