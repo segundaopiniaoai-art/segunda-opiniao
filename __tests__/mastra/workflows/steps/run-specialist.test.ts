@@ -46,7 +46,7 @@ describe('runSpecialist step', () => {
   })
 
   it('builds messages with one file part per PDF plus a final text part', async () => {
-    mockGenerate.mockResolvedValue({ object: minimalResult })
+    mockGenerate.mockResolvedValue({ object: minimalResult, usage: { inputTokens: 100, outputTokens: 50 } })
 
     await execute(baseInput)
 
@@ -69,7 +69,7 @@ describe('runSpecialist step', () => {
   })
 
   it('uses patient context in the text part when patientContext is non-null', async () => {
-    mockGenerate.mockResolvedValue({ object: minimalResult })
+    mockGenerate.mockResolvedValue({ object: minimalResult, usage: { inputTokens: 100, outputTokens: 50 } })
     const input = { ...baseInput, patientContext: 'tenho falta de ar' }
 
     await execute(input)
@@ -82,7 +82,7 @@ describe('runSpecialist step', () => {
   })
 
   it('uses the default text part when patientContext is null', async () => {
-    mockGenerate.mockResolvedValue({ object: minimalResult })
+    mockGenerate.mockResolvedValue({ object: minimalResult, usage: { inputTokens: 100, outputTokens: 50 } })
 
     await execute(baseInput)
 
@@ -91,14 +91,45 @@ describe('runSpecialist step', () => {
     expect(textPart.text).toBe('Analise os exames acima e gere uma segunda opinião.')
   })
 
-  it('calls agent.generate with output: consultationResultSchema and returns wrapped result', async () => {
-    mockGenerate.mockResolvedValue({ object: minimalResult })
+  it('calls agent.generate with structuredOutput and returns wrapped result with usage and cost', async () => {
+    mockGenerate.mockResolvedValue({
+      object: minimalResult,
+      usage: { inputTokens: 12_430, outputTokens: 1_892 },
+    })
 
     const result = await execute(baseInput)
 
     const [, options] = mockGenerate.mock.calls[0]
     expect(options).toEqual({ structuredOutput: { schema: consultationResultSchema } })
-    expect(result).toEqual({ consultationId: 'consultation-1', result: minimalResult })
+    expect(result).toEqual({
+      consultationId: 'consultation-1',
+      result: minimalResult,
+      usage: { inputTokens: 12_430, outputTokens: 1_892 },
+      // 12430 * 3 / 1e6 + 1892 * 15 / 1e6 = 0.03729 + 0.02838 = 0.06567
+      costUsd: 0.06567,
+    })
+  })
+
+  it('falls back to promptTokens/completionTokens when only legacy field names are present', async () => {
+    mockGenerate.mockResolvedValue({
+      object: minimalResult,
+      usage: { promptTokens: 1000, completionTokens: 500 },
+    })
+
+    const result = await execute(baseInput)
+
+    expect(result.usage).toEqual({ inputTokens: 1000, outputTokens: 500 })
+    // 1000 * 3 / 1e6 + 500 * 15 / 1e6 = 0.003 + 0.0075 = 0.0105
+    expect(result.costUsd).toBe(0.0105)
+  })
+
+  it('defaults usage to zero when SDK returns no usage object', async () => {
+    mockGenerate.mockResolvedValue({ object: minimalResult })
+
+    const result = await execute(baseInput)
+
+    expect(result.usage).toEqual({ inputTokens: 0, outputTokens: 0 })
+    expect(result.costUsd).toBe(0)
   })
 
   it('throws and marks failed when agentKey is unknown', async () => {

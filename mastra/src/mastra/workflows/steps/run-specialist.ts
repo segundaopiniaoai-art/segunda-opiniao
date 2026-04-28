@@ -3,6 +3,12 @@ import { z } from 'zod'
 import { agentsByKey } from '../../agents'
 import { consultationResultSchema } from '../../schemas/consultation-result'
 import { markConsultationFailed } from '../../lib/mark-failed'
+// Relative path crosses the mastra/ sub-package boundary intentionally —
+// the Mastra bundler follows relative imports. Cannot use @/ alias here:
+// mastra/tsconfig.json maps @/ to mastra/src/mastra/*, not to the repo root.
+import { calculateCostUsd } from '../../../../../lib/pricing'
+
+const SPECIALIST_MODEL = 'claude-sonnet-4-6'
 
 export const runSpecialist = createStep({
   id: 'runSpecialist',
@@ -18,10 +24,14 @@ export const runSpecialist = createStep({
   outputSchema: z.object({
     consultationId: z.string(),
     result: consultationResultSchema,
+    usage: z.object({
+      inputTokens: z.number().int().nonnegative(),
+      outputTokens: z.number().int().nonnegative(),
+    }),
+    costUsd: z.number().nonnegative(),
   }),
   execute: async ({ inputData }) => {
     try {
-      // Imported from agents registry directly to avoid circular dep with mastra/index.ts
       const agent = agentsByKey[inputData.agentKey as keyof typeof agentsByKey]
       if (!agent) throw new Error(`Agent não encontrado: ${inputData.agentKey}`)
 
@@ -43,11 +53,33 @@ export const runSpecialist = createStep({
         },
       ]
 
-      const { object } = await agent.generate(messages, {
+      const { object, usage } = await agent.generate(messages, {
         structuredOutput: { schema: consultationResultSchema },
-      })
+      }) as {
+        object: z.infer<typeof consultationResultSchema>
+        usage?: {
+          inputTokens?: number
+          outputTokens?: number
+          promptTokens?: number
+          completionTokens?: number
+        }
+      }
 
-      return { consultationId: inputData.consultationId, result: object }
+      const tokens = {
+        inputTokens:  usage?.inputTokens  ?? usage?.promptTokens     ?? 0,
+        outputTokens: usage?.outputTokens ?? usage?.completionTokens ?? 0,
+      }
+      if (tokens.inputTokens === 0 && tokens.outputTokens === 0) {
+        console.warn(`[runSpecialist] usage missing or zero for consultation=${inputData.consultationId}`)
+      }
+      const costUsd = calculateCostUsd(SPECIALIST_MODEL, tokens)
+
+      return {
+        consultationId: inputData.consultationId,
+        result: object,
+        usage: tokens,
+        costUsd,
+      }
     } catch (err) {
       await markConsultationFailed(inputData.consultationId, 'Não conseguimos analisar seus exames. Tente novamente.')
       throw err
