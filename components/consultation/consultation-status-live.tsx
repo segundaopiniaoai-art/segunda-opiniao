@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
-import { FileText, Loader2 } from 'lucide-react'
+import { FileText, Clock } from 'lucide-react'
 import {
   HeartPulse, Ribbon, Brain, Bone, ScanFace, Stethoscope, type LucideIcon,
 } from 'lucide-react'
 import { ConsultationResult } from './consultation-result'
 import { ConsultationFailed } from './consultation-failed'
+import { ProcessingCard } from './processing-card'
+import { StatusBadge } from '@/components/ui/status-badge'
 import type { ConsultationResult as Result } from '@/lib/schemas/consultation-result'
 
 const iconMap: Record<string, LucideIcon> = {
@@ -17,13 +19,6 @@ const iconMap: Record<string, LucideIcon> = {
   bone: Bone,
   'scan-face': ScanFace,
   stethoscope: Stethoscope,
-}
-
-const statusConfig: Record<string, { label: string; color: string }> = {
-  pending: { label: 'Aguardando upload', color: 'bg-gray-100 text-gray-700' },
-  processing: { label: 'Analisando seus exames…', color: 'bg-blue-100 text-blue-800' },
-  completed: { label: 'Concluída', color: 'bg-green-100 text-green-800' },
-  failed: { label: 'Falhou', color: 'bg-red-100 text-red-800' },
 }
 
 type ConsultationFile = { id: string; file_name: string; file_size: number }
@@ -47,8 +42,12 @@ function formatFileSize(bytes: number): string {
 
 export function ConsultationStatusLive({ initial }: { initial: ConsultationRow }) {
   const [consultation, setConsultation] = useState(initial)
+  const [showResult, setShowResult] = useState(initial.status === 'completed')
+  const [fadeOut, setFadeOut] = useState(false)
 
   useEffect(() => {
+    if (initial.status === 'completed' || initial.status === 'failed') return
+
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -66,7 +65,14 @@ export function ConsultationStatusLive({ initial }: { initial: ConsultationRow }
         (payload) => {
           const next = payload.new as Partial<ConsultationRow>
           setConsultation((prev) => ({ ...prev, ...next }))
-          if (next.status === 'completed' || next.status === 'failed') {
+
+          if (next.status === 'completed') {
+            setFadeOut(true)
+            setTimeout(() => setShowResult(true), 500)
+            supabase.removeChannel(channel)
+          }
+          if (next.status === 'failed') {
+            setFadeOut(true)
             supabase.removeChannel(channel)
           }
         }
@@ -76,73 +82,100 @@ export function ConsultationStatusLive({ initial }: { initial: ConsultationRow }
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [initial.id])
+  }, [initial.id, initial.status])
 
   const specialist = Array.isArray(consultation.specialist)
     ? consultation.specialist[0]
     : consultation.specialist
   const Icon = iconMap[specialist?.icon ?? ''] ?? Stethoscope
-  const status = statusConfig[consultation.status] ?? statusConfig.pending
   const date = new Date(consultation.created_at).toLocaleDateString('pt-BR', {
     day: '2-digit', month: 'long', year: 'numeric',
   })
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-bold">Consulta</h1>
-        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${status.color}`}>
-          {status.label}
-        </span>
+      <div>
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="font-heading text-2xl font-bold">
+            Consulta com {specialist?.name}
+          </h1>
+          <StatusBadge status={consultation.status} />
+        </div>
+        <p className="text-sm text-muted-foreground">{date}</p>
       </div>
-      <p className="text-sm text-gray-500">{date}</p>
 
-      <section className="rounded-xl border p-4">
-        <h2 className="text-sm font-medium text-gray-500 mb-2">Especialista</h2>
+      <section className="rounded-lg border border-border bg-surface p-4">
+        <h2 className="text-sm font-medium text-muted-foreground mb-2">Especialista</h2>
         <div className="flex items-center gap-3">
-          <Icon className="h-6 w-6 text-primary" />
-          <span className="font-medium">{specialist?.name}</span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+            <Icon className="h-5 w-5 text-primary" />
+          </div>
+          <span className="font-heading font-semibold">{specialist?.name}</span>
         </div>
       </section>
 
-      <section className="rounded-xl border p-4">
-        <h2 className="text-sm font-medium text-gray-500 mb-2">
+      <section className="rounded-lg border border-border bg-surface p-4">
+        <h2 className="text-sm font-medium text-muted-foreground mb-2">
           Arquivos enviados ({consultation.files.length})
         </h2>
         <ul className="space-y-2">
           {consultation.files.map((file) => (
             <li key={file.id} className="flex items-center gap-3">
-              <FileText className="h-4 w-4 text-gray-400" />
-              <span className="text-sm">{file.file_name}</span>
-              <span className="text-xs text-gray-400">{formatFileSize(file.file_size)}</span>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm truncate min-w-0">{file.file_name}</span>
+              <span className="text-xs text-muted-foreground flex-shrink-0">
+                {formatFileSize(file.file_size)}
+              </span>
             </li>
           ))}
         </ul>
       </section>
 
       {consultation.patient_context && (
-        <section className="rounded-xl border p-4">
-          <h2 className="text-sm font-medium text-gray-500 mb-2">Contexto compartilhado</h2>
+        <section className="rounded-lg border border-border bg-surface p-4">
+          <h2 className="text-sm font-medium text-muted-foreground mb-2">Contexto compartilhado</h2>
           <p className="text-sm whitespace-pre-wrap">{consultation.patient_context}</p>
         </section>
       )}
 
-      {consultation.status === 'processing' && (
-        <div className="flex items-center gap-3 rounded-xl border bg-blue-50 p-4 text-sm text-blue-900">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Analisando seus exames…
+      {consultation.status === 'pending' && (
+        <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
+          <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+          <h3 className="font-heading text-lg font-semibold text-muted-foreground">
+            Aguardando envio dos exames...
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            O upload dos seus exames ainda nao foi concluido.
+          </p>
         </div>
       )}
 
-      {consultation.status === 'completed' && consultation.result && (
+      {consultation.status === 'processing' && !fadeOut && (
+        <ProcessingCard />
+      )}
+
+      {consultation.status === 'processing' && fadeOut && !showResult && (
+        <div className="transition-opacity duration-300 opacity-0">
+          <ProcessingCard />
+        </div>
+      )}
+
+      <div className="sr-only" aria-live="assertive">
+        {consultation.status === 'completed' && 'Resultado da consulta disponivel'}
+        {consultation.status === 'failed' && 'Erro na analise da consulta'}
+      </div>
+
+      {showResult && consultation.result && (
         <ConsultationResult result={consultation.result} />
       )}
 
       {consultation.status === 'failed' && (
-        <ConsultationFailed
-          consultationId={consultation.id}
-          failureReason={consultation.failure_reason}
-        />
+        <div className={fadeOut ? 'animate-fade-in-up' : ''}>
+          <ConsultationFailed
+            consultationId={consultation.id}
+            failureReason={consultation.failure_reason}
+          />
+        </div>
       )}
     </div>
   )
