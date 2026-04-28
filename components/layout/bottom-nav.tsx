@@ -2,16 +2,20 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ClipboardList, Plus } from 'lucide-react'
+import { ClipboardList, Plus, ShieldCheck, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
-const items = [
+type NavItem = { href: string; label: string; icon: LucideIcon }
+
+const baseItems: NavItem[] = [
   { href: '/dashboard', label: 'Consultas', icon: ClipboardList },
   { href: '/consultas/nova', label: 'Nova Consulta', icon: Plus },
 ]
+const adminItem: NavItem = { href: '/admin/dashboard', label: 'Admin', icon: ShieldCheck }
 
-export function BottomNav() {
+export function BottomNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname()
+  const items = isAdmin ? [...baseItems, adminItem] : baseItems
 
   return (
     <nav
