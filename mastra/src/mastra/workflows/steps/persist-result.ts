@@ -9,13 +9,26 @@ export const persistResult = createStep({
   inputSchema: z.object({
     consultationId: z.string(),
     result: consultationResultSchema,
+    usage: z.object({
+      inputTokens: z.number().int().nonnegative(),
+      outputTokens: z.number().int().nonnegative(),
+    }),
+    costUsd: z.number().nonnegative(),
   }),
   outputSchema: z.object({ status: z.enum(['completed', 'failed']) }),
   execute: async ({ inputData }) => {
+    // Mastra validates inputSchema before execute runs; only errors thrown
+    // *inside* this block (e.g., Supabase failures) reach the catch.
     try {
       const { error } = await supabaseAdmin
         .from('consultations')
-        .update({ status: 'completed', result: inputData.result })
+        .update({
+          status: 'completed',
+          result: inputData.result,
+          input_tokens: inputData.usage.inputTokens,
+          output_tokens: inputData.usage.outputTokens,
+          cost_usd: inputData.costUsd,
+        })
         .eq('id', inputData.consultationId)
       if (error) throw error
       return { status: 'completed' as const }
