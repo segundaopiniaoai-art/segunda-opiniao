@@ -12,7 +12,7 @@ export default async function NovaConsultaPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Nova Consulta</h1>
+      <h1 className="font-heading text-2xl md:text-3xl font-bold mb-6">Nova Consulta</h1>
       <ConsultationForm specialists={specialists ?? []} />
     </div>
   )
