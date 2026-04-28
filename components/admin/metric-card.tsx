@@ -3,11 +3,12 @@ import { cn } from '@/lib/cn'
 type Props = {
   label: string
   value?: number
+  formattedValue?: string
   placeholder?: boolean
   className?: string
 }
 
-export function MetricCard({ label, value, placeholder, className }: Props) {
+export function MetricCard({ label, value, formattedValue, placeholder, className }: Props) {
   return (
     <div
       className={cn(
@@ -28,7 +29,7 @@ export function MetricCard({ label, value, placeholder, className }: Props) {
           placeholder ? 'text-muted-foreground' : 'text-foreground',
         )}
       >
-        {placeholder ? '—' : (value ?? 0).toLocaleString('pt-BR')}
+        {placeholder ? '—' : (formattedValue ?? (value ?? 0).toLocaleString('pt-BR'))}
       </p>
     </div>
   )
