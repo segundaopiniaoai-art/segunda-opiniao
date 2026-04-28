@@ -30,8 +30,24 @@ describe('startConsultationWorkflow', () => {
     expect(out).toEqual({ runId: 'run-1' })
   })
 
-  it('throws when response not ok', async () => {
+  it('retries on 500 and succeeds', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 500 })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ runId: 'run-2' }) })
+    const out = await startConsultationWorkflow('cid-1')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(out).toEqual({ runId: 'run-2' })
+  })
+
+  it('throws after exhausting retries on 500', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 500 })
     await expect(startConsultationWorkflow('cid-1')).rejects.toThrow(/500/)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('throws immediately on 4xx without retrying', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 401 })
+    await expect(startConsultationWorkflow('cid-1')).rejects.toThrow(/401/)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
