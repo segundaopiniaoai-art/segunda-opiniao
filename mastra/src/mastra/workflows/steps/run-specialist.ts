@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { agentsByKey } from '../../agents'
 import { consultationResultSchema } from '../../schemas/consultation-result'
 import { markConsultationFailed } from '../../lib/mark-failed'
+import { supabaseAdmin } from '../../lib/supabase-admin'
 // Relative path crosses the mastra/ sub-package boundary intentionally —
 // the Mastra bundler follows relative imports. Cannot use @/ alias here:
 // mastra/tsconfig.json maps @/ to mastra/src/mastra/*, not to the repo root.
@@ -29,11 +30,22 @@ export const runSpecialist = createStep({
       outputTokens: z.number().int().nonnegative(),
     }),
     costUsd: z.number().nonnegative(),
+    promptVersionId: z.string().uuid(),
   }),
   execute: async ({ inputData }) => {
     try {
       const agent = agentsByKey[inputData.agentKey as keyof typeof agentsByKey]
       if (!agent) throw new Error(`Agent não encontrado: ${inputData.agentKey}`)
+
+      const { data: specialist, error: specialistError } = await supabaseAdmin
+        .from('specialists')
+        .select('current_prompt_version_id')
+        .eq('agent_key', inputData.agentKey)
+        .single()
+      if (specialistError || !specialist?.current_prompt_version_id) {
+        throw new Error(`Versão de prompt não encontrada para: ${inputData.agentKey}`)
+      }
+      const promptVersionId = specialist.current_prompt_version_id
 
       const userText = inputData.patientContext
         ? `Contexto do paciente:\n${inputData.patientContext}\n\nAnalise os exames acima e gere uma segunda opinião.`
@@ -79,6 +91,7 @@ export const runSpecialist = createStep({
         result: object,
         usage: tokens,
         costUsd,
+        promptVersionId,
       }
     } catch (err) {
       await markConsultationFailed(inputData.consultationId, 'Não conseguimos analisar seus exames. Tente novamente.')

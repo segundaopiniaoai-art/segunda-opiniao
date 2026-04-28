@@ -15,6 +15,19 @@ jest.mock('@/mastra/lib/mark-failed', () => ({
   markConsultationFailed: (...args: unknown[]) => mockMarkFailed(...args),
 }))
 
+// Mock supabaseAdmin for prompt version lookup
+const STUB_PROMPT_VERSION_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+const mockSingle = jest.fn()
+jest.mock('@/mastra/lib/supabase-admin', () => ({
+  supabaseAdmin: {
+    from: jest.fn().mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: (...args: unknown[]) => mockSingle(...args),
+    }),
+  },
+}))
+
 const minimalResult = {
   summary: 'ok',
   findings: [],
@@ -43,6 +56,10 @@ const execute = (input: Record<string, unknown>) =>
 describe('runSpecialist step', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockSingle.mockResolvedValue({
+      data: { current_prompt_version_id: STUB_PROMPT_VERSION_ID },
+      error: null,
+    })
   })
 
   it('builds messages with one file part per PDF plus a final text part', async () => {
@@ -107,6 +124,7 @@ describe('runSpecialist step', () => {
       usage: { inputTokens: 12_430, outputTokens: 1_892 },
       // 12430 * 3 / 1e6 + 1892 * 15 / 1e6 = 0.03729 + 0.02838 = 0.06567
       costUsd: 0.06567,
+      promptVersionId: STUB_PROMPT_VERSION_ID,
     })
   })
 
