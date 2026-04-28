@@ -10,12 +10,26 @@
   --color-background: #F8FAFC;
   --color-surface: #FFFFFF;
   --color-foreground: #0F172A;
+  --color-muted: #F1F5F9;
   --color-muted-foreground: #475569;
   --color-border: #E2E8F0;
   --color-ring: #0284C7;
 
   --font-heading: var(--font-figtree);
   --font-sans: var(--font-noto-sans);
+
+  --animate-fade-in-up: fade-in-up 500ms ease-out both;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 html {
