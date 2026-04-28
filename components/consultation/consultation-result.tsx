@@ -1,4 +1,4 @@
-import type { ConsultationResult as Result } from '@/mastra/schemas/consultation-result'
+import type { ConsultationResult as Result } from '@/lib/schemas/consultation-result'
 
 const severityStyle: Record<Result['findings'][number]['severity'], string> = {
   info: 'bg-gray-100 text-gray-700',

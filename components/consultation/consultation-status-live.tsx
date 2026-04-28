@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { ConsultationResult } from './consultation-result'
 import { ConsultationFailed } from './consultation-failed'
-import type { ConsultationResult as Result } from '@/mastra/schemas/consultation-result'
+import type { ConsultationResult as Result } from '@/lib/schemas/consultation-result'
 
 const iconMap: Record<string, LucideIcon> = {
   'heart-pulse': HeartPulse,
