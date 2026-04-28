@@ -14,7 +14,7 @@ export default async function DashboardPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Minhas Consultas</h1>
+        <h1 className="font-heading text-2xl md:text-3xl font-bold">Minhas Consultas</h1>
         <Link href="/consultas/nova" className={buttonVariants()}>Nova Consulta</Link>
       </div>
       <ConsultationList consultations={consultations ?? []} />
