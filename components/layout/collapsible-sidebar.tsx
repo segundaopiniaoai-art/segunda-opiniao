@@ -122,7 +122,7 @@ export function CollapsibleSidebar({ isAdmin = false }: { isAdmin?: boolean }) {
 
       <nav className="flex-1 px-2 space-y-1">
         {navItems.map((item) => {
-          const isActive = pathname === item.href
+          const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
           return (
             <Link
               key={item.href}
