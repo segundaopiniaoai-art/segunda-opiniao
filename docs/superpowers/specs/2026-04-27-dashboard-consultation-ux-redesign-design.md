@@ -98,7 +98,7 @@ A landing page define a linguagem visual de referencia: Figtree/Noto Sans, palet
 ### Logica de progresso
 
 - Passo 1 completo: pelo menos 1 PDF adicionado
-- Passo 2 completo: usuario scrollou/interagiu com a secao (campo opcional)
+- Passo 2 completo: sempre marcado como completo (campo e opcional — passo nao bloqueia progresso)
 - Passo 3 completo: especialista selecionado
 - Stepper e **apenas visual/informativo** — nao bloqueia navegacao
 
@@ -117,7 +117,7 @@ A landing page define a linguagem visual de referencia: Figtree/Noto Sans, palet
 
 ### Botao de submit
 
-- **Mobile**: fixo no bottom `fixed bottom-0 inset-x-0 p-4 bg-surface border-t`
+- **Mobile**: fixo acima do bottom nav `fixed bottom-[4rem] inset-x-0 p-4 bg-surface border-t` — coordenado com a altura do `BottomNav` para evitar sobreposicao
 - **Desktop**: inline no final do formulario
 - Disabled ate ter arquivos + especialista selecionado
 
@@ -178,7 +178,7 @@ Cada arquivo exibe:
 - **Card de processamento**: `bg-primary/5 border border-primary/20 rounded-lg p-8 text-center`
   - Icone `Loader2 w-12 h-12 text-primary animate-spin`
   - Texto principal: "Analisando seus exames..." em `font-heading text-lg font-semibold`
-  - Texto secundario: "Isso pode levar alguns minutos. Voce pode sair desta pagina — enviaremos uma notificacao quando estiver pronto." em `text-sm text-muted-foreground`
+  - Texto secundario: "Isso pode levar alguns minutos. Voce pode sair e voltar a qualquer momento — o resultado aparecera automaticamente." em `text-sm text-muted-foreground`
 
 - **Indicador de etapas decorativo** (baseado em tempo, nao no progresso real):
   - 3 etapas verticais: "Lendo documentos" > "Analisando resultados" > "Preparando relatorio"
