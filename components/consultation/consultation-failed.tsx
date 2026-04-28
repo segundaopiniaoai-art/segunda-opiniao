@@ -25,12 +25,14 @@ export function ConsultationFailed({ consultationId, failureReason }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-3">
+    <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 space-y-3">
       <div className="flex items-start gap-3">
-        <AlertTriangle className="h-5 w-5 text-red-700 flex-shrink-0 mt-0.5" />
+        <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
         <div>
-          <p className="font-medium text-red-900">Não conseguimos concluir a análise</p>
-          <p className="text-sm text-red-800 mt-1">
+          <p className="font-heading font-medium text-destructive">
+            Nao conseguimos concluir a analise
+          </p>
+          <p className="text-sm text-destructive/80 mt-1">
             {failureReason ?? 'Algo deu errado durante o processamento.'}
           </p>
         </div>
@@ -39,7 +41,7 @@ export function ConsultationFailed({ consultationId, failureReason }: Props) {
         <RefreshCcw className="h-4 w-4 mr-2" />
         {isPending ? 'Reenviando...' : 'Tentar novamente'}
       </Button>
-      {retryError && <p className="text-sm text-red-700">{retryError}</p>}
+      {retryError && <p className="text-sm text-destructive">{retryError}</p>}
     </div>
   )
 }
