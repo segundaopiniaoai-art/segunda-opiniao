@@ -1,20 +1,9 @@
 import Link from 'next/link'
-import {
-  HeartPulse, Ribbon, Brain, Bone, ScanFace, Stethoscope, ClipboardPlus,
-  type LucideIcon,
-} from 'lucide-react'
+import { ClipboardPlus } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { cn } from '@/lib/cn'
-
-const iconMap: Record<string, LucideIcon> = {
-  'heart-pulse': HeartPulse,
-  ribbon: Ribbon,
-  brain: Brain,
-  bone: Bone,
-  'scan-face': ScanFace,
-  stethoscope: Stethoscope,
-}
+import { getSpecialistIcon } from '@/lib/specialist-icons'
 
 type Specialist = { name: string; icon: string }
 
@@ -47,7 +36,7 @@ export function ConsultationList({ consultations }: Props) {
         const specialist = Array.isArray(consultation.specialist)
           ? consultation.specialist[0]
           : consultation.specialist
-        const Icon = iconMap[specialist?.icon ?? ''] ?? Stethoscope
+        const Icon = getSpecialistIcon(specialist?.icon ?? '')
         const date = new Date(consultation.created_at).toLocaleDateString('pt-BR')
         const status = consultation.status as 'pending' | 'processing' | 'completed' | 'failed'
 
