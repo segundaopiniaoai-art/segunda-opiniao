@@ -17,6 +17,7 @@ import {
   LogOut,
   ShieldCheck,
   BarChart3,
+  Stethoscope,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
@@ -34,6 +35,7 @@ const navItems: NavItem[] = [
 
 const adminSubItems: NavItem[] = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: BarChart3 },
+  { href: '/admin/especialistas', label: 'Especialistas', icon: Stethoscope },
 ]
 
 export function CollapsibleSidebar({ isAdmin = false }: { isAdmin?: boolean }) {
