@@ -37,14 +37,17 @@ export async function listSpecialistsWithCurrentVersion(
 
   if (error) throw error
 
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    name: row.name,
-    icon: row.icon,
-    agentKey: row.agent_key,
-    currentVersionNumber: row.current_version.version_number,
-    currentVersionCreatedAt: row.current_version.created_at,
-  }))
+  return (data ?? []).map((row) => {
+    const cv = row.current_version as unknown as { version_number: number; created_at: string }
+    return {
+      id: row.id,
+      name: row.name,
+      icon: row.icon,
+      agentKey: row.agent_key,
+      currentVersionNumber: cv.version_number,
+      currentVersionCreatedAt: cv.created_at,
+    }
+  })
 }
 
 export async function getSpecialistEditorData(
@@ -70,14 +73,15 @@ export async function getSpecialistEditorData(
   if (versionsRes.error) throw versionsRes.error
 
   const s = specialistRes.data
+  const cv = s.current_version as unknown as { version_number: number; content: string }
 
   return {
     id: s.id,
     name: s.name,
     icon: s.icon,
     currentVersionId: s.current_prompt_version_id,
-    currentVersionNumber: s.current_version.version_number,
-    currentContent: s.current_version.content,
+    currentVersionNumber: cv.version_number,
+    currentContent: cv.content,
     versions: (versionsRes.data ?? []).map((v) => ({
       id: v.id,
       versionNumber: v.version_number,
